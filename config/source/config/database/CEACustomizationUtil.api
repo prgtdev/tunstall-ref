@@ -60,6 +60,7 @@ FUNCTION  Get_Update_Follow_Up_Date_Sql__(
    note_id_        IN NUMBER,
    note_status_id_ IN NUMBER) RETURN VARCHAR2;
 
+PROCEDURE Close_Non_Finance_User_Group;
 -----------------------------------------------------------------------------
 -------------------- FOUNDATION1 METHODS ------------------------------------
 -----------------------------------------------------------------------------

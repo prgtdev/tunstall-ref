@@ -380,6 +380,31 @@ BEGIN
    RETURN source_key_ref_list_;
 END Transf_Part_To_Inv_Part;
 
+-- C0334
+PROCEDURE Close_Non_Finance_User_Group     
+IS 
+  non_finance_user_group_ VARCHAR2(30) := 'NF'; 
+
+  CURSOR check_valid_until_date IS
+     SELECT * from ACC_PERIOD_LEDGER t
+     WHERE date_until < SYSDATE
+     AND period_status_db = 'O';  
+BEGIN
+  FOR rec_ IN check_valid_until_date LOOP 
+     IF  (User_Group_Period_API.Check_Exist(rec_.company, 
+                                            rec_.accounting_year, 
+                                            rec_.accounting_period, 
+                                            non_finance_user_group_, 
+                                            rec_.ledger_id) = TRUE) THEN
+        User_Group_Period_API.Close_Period(rec_.company,
+                                           non_finance_user_group_,
+                                           rec_.accounting_year,
+                                           rec_.accounting_period,
+                                           rec_.ledger_id);       
+
+     END IF;
+  END LOOP;
+END Close_Non_Finance_User_Group;
 -----------------------------------------------------------------------------
 -------------------- FOUNDATION1 METHODS ------------------------------------
 -----------------------------------------------------------------------------
