@@ -1,0 +1,75 @@
+-----------------------------------------------------------------------------
+--
+--  Logical unit: CEACustomizationUtil
+--
+--  File   : CEACustomizationUtil.api
+--
+--  IFS Developer Studio Template Version 2.6
+--
+--  Date     Sign    History
+--  ------   ------  --------------------------------------------------
+--  210510   EA      Created
+--  ------   ------  --------------------------------------------------
+-----------------------------------------------------------------------------
+
+DEFINE MODULE        = CONFIG
+DEFINE LU            = CEACustomizationUtil
+DEFINE PKG           = C_EA_Customization_Util_API
+
+PROMPT Creating &PKG SPECIFICATION
+
+CREATE OR REPLACE PACKAGE &PKG IS
+
+module_  CONSTANT VARCHAR2(25) := '&MODULE';
+lu_name_ CONSTANT VARCHAR2(25) := '&LU';
+lu_type_ CONSTANT VARCHAR2(15) := 'Utility';
+
+-----------------------------------------------------------------------------
+-------------------- LU SPECIFIC PRIVATE METHODS ----------------------------
+-----------------------------------------------------------------------------
+
+
+-----------------------------------------------------------------------------
+-------------------- LU SPECIFIC PROTECTED METHODS --------------------------
+-----------------------------------------------------------------------------
+
+
+-----------------------------------------------------------------------------
+-------------------- LU SPECIFIC PUBLIC METHODS -----------------------------
+-----------------------------------------------------------------------------
+
+PROCEDURE Bulk_Update_Invoice_Header_Notes__(
+   company_ IN VARCHAR2,
+   identity_ IN VARCHAR2);
+
+PROCEDURE Update_Follow_Up_Date__(
+   calender_id_    IN VARCHAR2,
+   company_        IN VARCHAR2,
+   invoice_id_     IN VARCHAR2,
+   note_id_        IN NUMBER,   
+   note_status_id_ IN NUMBER);
+
+FUNCTION Transf_Part_To_Inv_Part(
+   target_key_ref_ IN VARCHAR2,
+   service_name_   IN VARCHAR2) RETURN VARCHAR2;
+
+FUNCTION  Get_Update_Follow_Up_Date_Sql__(
+   calender_id_    IN VARCHAR2,
+   company_        IN VARCHAR2,
+   invoice_id_     IN VARCHAR2,
+   note_id_        IN NUMBER,
+   note_status_id_ IN NUMBER) RETURN VARCHAR2;
+
+-----------------------------------------------------------------------------
+-------------------- FOUNDATION1 METHODS ------------------------------------
+-----------------------------------------------------------------------------
+
+PROCEDURE Init;
+
+END &PKG;
+/
+SHOW ERROR
+
+UNDEFINE MODULE
+UNDEFINE LU
+UNDEFINE PKG
