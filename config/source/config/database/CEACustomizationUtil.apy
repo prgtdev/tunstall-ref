@@ -405,6 +405,36 @@ BEGIN
      END IF;
   END LOOP;
 END Close_Non_Finance_User_Group;
+
+--C566
+FUNCTION Transf_Mansup_Attach_To_PO(target_key_ref_ IN VARCHAR2,
+                                    service_name_   IN VARCHAR2)
+  RETURN VARCHAR2 IS
+  order_no_            invoice_tab.PO_REF_NUMBER%TYPE;
+  source_key_ref_      VARCHAR2(32000);
+  source_key_ref_list_ VARCHAR2(32000);
+
+  CURSOR get_part_nos IS
+    SELECT COMPANY, INVOICE_ID
+      FROM invoice_tab
+     WHERE rowtype LIKE '%ManSuppInvoice'
+       AND PO_REF_NUMBER = order_no_;
+
+BEGIN
+  order_no_ := Client_SYS.Get_Key_Reference_Value(target_key_ref_,
+                                                  'ORDER_NO');
+  FOR rec_ IN get_part_nos LOOP
+  
+    source_key_ref_ := 'COMPANY=' || rec_.company || '^INVOICE_ID=' ||
+                       rec_.invoice_id || '^';
+    Obj_Connect_Lu_Transform_API.Add_To_Source_Key_Ref_List(source_key_ref_list_,
+                                                            source_key_ref_);
+  END LOOP;
+
+  RETURN source_key_ref_list_;
+
+END Transf_Mansup_Attach_To_PO;
+
 -----------------------------------------------------------------------------
 -------------------- FOUNDATION1 METHODS ------------------------------------
 -----------------------------------------------------------------------------

@@ -61,6 +61,10 @@ FUNCTION  Get_Update_Follow_Up_Date_Sql__(
    note_status_id_ IN NUMBER) RETURN VARCHAR2;
 
 PROCEDURE Close_Non_Finance_User_Group;
+
+FUNCTION Transf_Mansup_Attach_To_PO(
+   target_key_ref_ IN VARCHAR2,
+   service_name_   IN VARCHAR2) RETURN VARCHAR2;
 -----------------------------------------------------------------------------
 -------------------- FOUNDATION1 METHODS ------------------------------------
 -----------------------------------------------------------------------------
