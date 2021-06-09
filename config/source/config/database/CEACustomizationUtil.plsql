@@ -432,9 +432,14 @@ PROCEDURE Create_Functional_Object__ (
    sub_project_id_  IN VARCHAR2)
 IS
    stmt_ VARCHAR2(32000);
+   v_project_id_ VARCHAR2(20);
+   v_sub_project_id_ VARCHAR2(20);
 BEGIN   
    stmt_ := '
    DECLARE
+      project_id_ VARCHAR2(20);
+      sub_project_id_ VARCHAR2(20);
+      
       company_ VARCHAR2(20);
       object_id_              VARCHAR2(20);
       --sub_proj_inst_site_     VARCHAR2(20);
@@ -715,6 +720,9 @@ BEGIN
          END IF;   
       END Validate_Prerequisites___;
    BEGIN
+      project_id_:= :v_project_id_;
+      sub_project_id_ := :v_sub_project_id_;
+      
       company_ := Project_API.Get_Company(project_id_);
       object_id_ := Get_Object_Id___(project_id_, sub_project_id_);
 
@@ -759,13 +767,16 @@ BEGIN
                                                     ''No Functional Objects Created'',''Functional Objects are already created for Sub Project '' || project_id_ ||'' - ''||sub_project_id_,'''');
       END IF;
    END;';
+   v_project_id_:= v_project_id_;
+   v_sub_project_id_ := v_sub_project_id_;
+   
    IF (Database_SYS.View_Exist('WARRANTY_CLV') 
           AND Database_SYS.View_Exist('SALES_CONTRACT_SITE_CLV')
              AND Database_SYS.View_Exist('PROJECT_CFV')) THEN
       @ApproveDynamicStatement('2021-06-07',EntPrageG);
       EXECUTE IMMEDIATE stmt_
-      USING IN project_id_,
-            IN sub_project_id_;
+      USING IN v_project_id_,
+            IN v_sub_project_id_;
    ELSE
      Error_Sys.Appl_General(lu_name_,'Custom Objects are not published!');
    END IF;
