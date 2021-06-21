@@ -65,6 +65,18 @@ PROCEDURE Close_Non_Finance_User_Group;
 FUNCTION Transf_Mansup_Attach_To_PO(
    target_key_ref_ IN VARCHAR2,
    service_name_   IN VARCHAR2) RETURN VARCHAR2;
+
+-- C0654 EntChamuA (START)
+FUNCTION Check_Kitted_Reservation_Date(
+   rev_start_date_  IN DATE,
+   contract_        IN VARCHAR2) RETURN VARCHAR2;
+
+PROCEDURE Reserve_Kitted_Kanban_Parts;
+
+FUNCTION Check_Kanban_Reservation_Date(
+   rev_start_date_  IN DATE,
+   contract_        IN VARCHAR2) RETURN VARCHAR2;
+-- C0654 EntChamuA (END)
 -----------------------------------------------------------------------------
 -------------------- FOUNDATION1 METHODS ------------------------------------
 -----------------------------------------------------------------------------
