@@ -417,10 +417,10 @@ FUNCTION Transf_Mansup_Attach_To_PO(target_key_ref_ IN VARCHAR2,
   source_key_ref_list_ VARCHAR2(32000);
 
   CURSOR get_part_nos IS
-    SELECT COMPANY, INVOICE_ID
+    SELECT company, invoice_id
       FROM invoice_tab
      WHERE rowtype LIKE '%ManSuppInvoice'
-       AND PO_REF_NUMBER = order_no_;
+       AND po_ref_number = order_no_;
 
 BEGIN
   order_no_ := Client_SYS.Get_Key_Reference_Value(target_key_ref_,
