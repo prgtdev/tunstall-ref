@@ -267,7 +267,8 @@ BEGIN
               INTO next_work_day_
               FROM (SELECT work_day, rownum as counter
                       FROM work_time_counter
-                     WHERE work_day > SYSDATE
+                     WHERE calendar_id = calendar_id_
+                       AND work_day > SYSDATE
                   ORDER BY counter) t
               WHERE t.counter = follow_up_days_;
          RETURN next_work_day_;
