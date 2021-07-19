@@ -1039,7 +1039,7 @@ BEGIN
       END;';
    IF (Database_SYS.View_Exist('ENG_PART_STRUCTURE_EXT_CFV') AND
              Database_SYS.Package_Exist('ENG_PART_STRUCTURE_CFP')) THEN
-      --@ApproveDynamicStatement('2021-04-27',entpragg);
+      @ApproveDynamicStatement('2021-04-27',EntPragG);
       EXECUTE IMMEDIATE stmt_
         USING IN part_no_, IN part_rev_;
    ELSE
