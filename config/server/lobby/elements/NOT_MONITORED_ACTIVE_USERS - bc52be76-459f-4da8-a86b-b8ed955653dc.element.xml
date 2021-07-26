@@ -1,0 +1,20 @@
+﻿<Counter>
+  <Author>DELL</Author>
+  <LastModified>2021-06-04-10.46.32</LastModified>
+  <Title>Not Monitored Active Users</Title>
+  <Background>#FF369B30</Background>
+  <Name>NOT_MONITORED_ACTIVE_USERS</Name>
+  <ID>bc52be76-459f-4da8-a86b-b8ed955653dc</ID>
+  <CustomUrl>ifsapf:frmEquipObjStructure</CustomUrl>
+  <OwnProcessId>8386c8c2-52e6-445c-8798-e040e29f240a</OwnProcessId>
+  <FormMappings />
+  <DataSourceId>f47679a8-a506-4ede-a735-ae71bb1eb028</DataSourceId>
+  <ColumnMapping>
+    <MappedColumns>
+      <MappedColumn>
+        <Column>COUNT(MCH_CODE)</Column>
+        <ConditionalFormats />
+      </MappedColumn>
+    </MappedColumns>
+  </ColumnMapping>
+</Counter>

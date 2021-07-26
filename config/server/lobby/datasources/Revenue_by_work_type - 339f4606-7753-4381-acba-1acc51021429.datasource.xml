@@ -1,0 +1,46 @@
+﻿<SQLDataSource>
+  <Author>DELL</Author>
+  <LastModified>2021-07-01-13.40.52</LastModified>
+  <Name>Revenue_by_work_type</Name>
+  <ID>339f4606-7753-4381-acba-1acc51021429</ID>
+  <Select>
+    <DataColumn>
+      <Column>SALES_PRICE_AMOUNT_CURR</Column>
+      <Name>SALES_PRICE_AMOUNT_CURR</Name>
+      <DataType>Number</DataType>
+    </DataColumn>
+    <DataColumn>
+      <Column>WORK_TYPE_ID</Column>
+      <Name>WORK_TYPE_ID</Name>
+    </DataColumn>
+  </Select>
+  <Where>task_seq IN
+       (SELECT task_seq
+          FROM (SELECT a.sales_line_seq,
+                       &amp;AO.Service_Pricing_API.Get_Sales_Price_Amount_Rounded(a.sales_part_site,
+                                                                          a.sales_part_no,
+                                                                          a.qty_to_invoice,
+                                                                          a.sales_price,
+                                                                          a.discount,
+                                                                          a.currency_code,
+                                                                          a.revenue_percent) as SALES_PRICE_AMOUNT_CURR,
+                       &amp;AO.Jt_Task_Sales_Line_API.Get_Task_Seq(a.sales_line_seq) as task_seq,
+                       &amp;AO.Active_Separate_API.Get_Reg_Date(&amp;AO.Jt_Task_API.Get_Wo_No(&amp;AO.Jt_Task_Sales_Line_API.Get_Task_Seq(a.sales_line_seq))) as reg_date,
+                       &amp;AO.Jt_Task_API.Get_Work_Type_Id(&amp;AO.Jt_Task_Sales_Line_API.Get_Task_Seq(a.sales_line_seq)) as work_type_id,
+                       &amp;AO.Jt_Task_API.Get_Contract_Id(&amp;AO.Jt_Task_Sales_Line_API.Get_Task_Seq(a.sales_line_seq)) as contract_id,
+                       &amp;AO.Crm_Cust_Info_API.Get_Main_Representative_Id(&amp;AO.Jt_Task_API.Get_Customer_No(&amp;AO.Jt_Task_Sales_Line_API.Get_Task_Seq(a.sales_line_seq))) as main_rep
+                  FROM &amp;AO.jt_task_sales_line a
+                 WHERE &amp;AO.Sc_Service_Contract_API.Get_Contract_Type(&amp;AO.Jt_Task_API.Get_Contract_Id(&amp;AO.Jt_Task_Sales_Line_API.Get_Task_Seq(a.sales_line_seq))) = 'MS'
+                   AND &amp;AO.Jt_Task_Sales_Line_API.Get_State(a.sales_line_seq) =
+                       'Invoiceable'
+                   AND &amp;AO.Jt_Task_API.Get_Work_Type_Id(&amp;AO.Jt_Task_Sales_Line_API.Get_Task_Seq(a.sales_line_seq)) IS NOT NULL)
+        WHERE reg_date &gt;= TO_DATE(NVL('$BEGIN_DATE$', '01/01/1900'), 'dd/mm/yyyy')
+           AND reg_date &lt;= TO_DATE(NVL('$END_DATE$', '31/12/2999') || ' 11:59:59 PM',
+                                   'dd/mm/yyyy hh:mi:ss pm')
+           AND REPLACE(NVL(contract_id, ' '), ' ', '%') LIKE
+               REPLACE(NVL('$CONTRACT_ID$', ' '), ' ', '%')
+           AND REPLACE(NVL(main_rep, ' '), ' ', '%') LIKE
+               REPLACE(NVL('$REGION_REPRESENTATIVE$', ' '), ' ', '%')) </Where>
+  <View>&amp;IAL.REVENUE_BY_WORK_TYPE</View>
+  <GroupBy />
+</SQLDataSource>

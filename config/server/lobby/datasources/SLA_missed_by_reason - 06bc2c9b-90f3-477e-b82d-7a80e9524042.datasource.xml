@@ -1,0 +1,46 @@
+﻿<SQLDataSource>
+  <Author>DELL</Author>
+  <LastModified>2021-06-22-11.38.44</LastModified>
+  <Name>SLA_missed_by_reason</Name>
+  <ID>06bc2c9b-90f3-477e-b82d-7a80e9524042</ID>
+  <Select>
+    <DataColumn>
+      <Column>TASK_SEQ</Column>
+      <Name>TASK_SEQ</Name>
+      <DataType>Number</DataType>
+    </DataColumn>
+    <DataColumn>
+      <Column>WO_NO</Column>
+      <Name>WO_NO</Name>
+      <DataType>Number</DataType>
+    </DataColumn>
+    <DataColumn>
+      <Column>MISSED_SLA_REASON</Column>
+      <Name>MISSED_SLA_REASON</Name>
+    </DataColumn>
+  </Select>
+  <Where>wo_no IN
+       (SELECT wo_no
+          FROM (SELECT a.wo_no,
+                       NVL(a.cf$_missed_sla_reason, 'BLANK') AS MISSED_SLA_REASON,
+                       &amp;AO.JT_TASK_API.Get_Contract_Id(a.TASK_SEQ) as contract_id,
+                       &amp;AO.Crm_Cust_Info_API.Get_Main_Representative_Id(&amp;AO.Jt_Task_API.Get_Customer_No(a.TASK_SEQ)) as main_rep,
+                       &amp;AO.Active_Separate_API.Get_Reg_Date(a.wo_no) as reg_date
+                  FROM &amp;AO.jt_task_cfv a
+                 WHERE &amp;AO.Sc_Service_Contract_API.Get_Contract_Type(&amp;AO.Jt_Task_API.Get_Contract_id(a.TASK_SEQ)) = 'MS'
+                   AND TRUNC(a.cf$_tunstall_sla) &lt; TRUNC(a.actual_finish)
+                   AND TRUNC(a.cf$_tunstall_sla) is not null
+                   AND TRUNC(a.actual_finish) is not null)
+         WHERE REPLACE(NVL(contract_id, ' '), ' ', '%') LIKE
+               REPLACE(NVL('$CONTRACT_ID$', ' '), ' ', '%')
+              
+           AND REPLACE(NVL(main_rep, ' '), ' ', '%') LIKE
+               REPLACE(NVL('$REGION_REPRESENTATIVE$', ' '), ' ', '%')
+           AND reg_date &gt;=
+               TO_DATE(NVL('$BEGIN_DATE$', '01/01/1900'), 'dd/mm/yyyy')
+           AND reg_date &lt;=
+               TO_DATE(NVL('$END_DATE$', '31/12/2999') || ' 11:59:59 PM',
+                       'dd/mm/yyyy hh:mi:ss pm'))</Where>
+  <View>&amp;IAL.SLA_MISSED_BY_REASON</View>
+  <GroupBy />
+</SQLDataSource>

@@ -1,0 +1,40 @@
+﻿<SQLDataSource>
+  <Author>DELL</Author>
+  <LastModified>2021-06-17-17.21.59</LastModified>
+  <Name>OVERDUE_WOS</Name>
+  <ID>7839b925-c16e-4601-8902-5b894d577245</ID>
+  <Select>
+    <DataColumn>
+      <Column>TASK_SEQ</Column>
+      <Name>TASK_SEQ</Name>
+      <DataType>Number</DataType>
+    </DataColumn>
+  </Select>
+  <Where>WO_NO IN
+       (select wo_no
+          FROM (SELECT wt.wo_no,
+                       &amp;AO.Active_Separate_API.Get_State(wt.wo_no) state,
+                       &amp;AO.Jt_Task_API.Get_Contract_Id(wt.task_seq) AS contract_id,
+                       &amp;AO.Active_Separate_API.Get_Reg_Date(wt.wo_no) reg_date,
+                       &amp;AO.Crm_Cust_Info_API.Get_Main_Representative_Id(&amp;AO.Jt_Task_API.Get_Customer_No(wt.task_seq)) representative_id
+                  FROM &amp;AO.jt_task_cfv wt
+                 WHERE &amp;AO.Sc_Service_Contract_API.Get_Contract_Type(&amp;AO.Active_Separate_API.Get_Contract_Id(wt.wo_no)) = 'MS'
+                   AND state IN ('New',
+                                 'Prepared',
+                                 'Released',
+                                 'Work Started',
+                                 'Under Preparation')
+                   AND cf$_tunstall_sla &lt; SYSDATE)
+         WHERE REPLACE(NVL(contract_id, ' '), ' ', '%') LIKE
+               REPLACE(NVL('$CONTRACT_ID$', ' '), ' ', '%')
+           AND reg_date &gt;=
+               TO_DATE(NVL('$BEGIN_DATE$', '01/01/1900'), 'dd/mm/yyyy')
+           AND reg_date &lt;=
+               TO_DATE(NVL('$END_DATE$', '31/12/2999') || ' 11:59:59 PM',
+                       'dd/mm/yyyy hh:mi:ss pm')
+           AND REPLACE(NVL(representative_id, ' '), ' ', '%') LIKE
+               REPLACE(NVL('$REGION_REPRESENTATIVE$', ' '), ' ', '%'))
+
+</Where>
+  <View>&amp;IAL.OVERDUE_WOS</View>
+</SQLDataSource>

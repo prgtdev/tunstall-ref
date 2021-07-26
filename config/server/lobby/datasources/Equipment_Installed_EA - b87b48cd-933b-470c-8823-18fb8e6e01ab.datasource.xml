@@ -1,0 +1,42 @@
+﻿<SQLDataSource>
+  <Author>DELL</Author>
+  <LastModified>2021-07-20-08.51.44</LastModified>
+  <Name>Equipment_Installed_EA</Name>
+  <ID>b87b48cd-933b-470c-8823-18fb8e6e01ab</ID>
+  <Select>
+    <DataColumn>
+      <Column>PART_NO</Column>
+      <Name>PART_NO</Name>
+    </DataColumn>
+    <DataColumn>
+      <Column>DESCRIPTION</Column>
+      <Name>DESCRIPTION</Name>
+    </DataColumn>
+    <DataColumn>
+      <Column>SUM(QUANTITY)</Column>
+      <Name>QUANTITY</Name>
+      <DataType>Number</DataType>
+    </DataColumn>
+  </Select>
+  <Where>mch_code IN
+       (SELECT mch_code
+          FROM (SELECT a.mch_code,
+                       NVL(&amp;AO.C_Ea_Customization_Util_API.Get_Identity(a.mch_code,                                                                  a.contract), '') AS identity,
+                       &amp;AO.C_Ea_Customization_Util_API.Get_Contract_Id(a.mch_code,
+                                                                   a.contract) AS contract_id
+                  FROM &amp;AO.equipment_functional_cfv   a
+                 WHERE a.part_no is not null
+                   AND a.objtype = 'EquipmentFunctional'
+                   AND a.operational_status_db = 'IN_OPERATION'
+                   AND &amp;AO.Sc_Service_Contract_API.Get_Contract_Type(&amp;AO.C_Ea_Customization_Util_API.Get_Contract_Id(a.mch_code,
+                                                                                                             a.contract)) = 'MS')
+         WHERE REPLACE(NVL(contract_id, ' '), ' ', '%') LIKE
+               REPLACE(NVL('$CONTRACT_ID$', ' '), ' ', '%')
+           AND REPLACE(NVL(&amp;AO.Crm_Cust_Info_API.Get_Main_Representative_Id(identity),
+                           ' '),
+                       ' ',
+                       '%') LIKE REPLACE(NVL('$REGION_REPRESENTATIVE$', ' '), ' ', '%'))</Where>
+  <View>&amp;IAL.EQUIPMENT_INSTALLED</View>
+  <OrderBy />
+  <GroupBy>PART_NO, DESCRIPTION</GroupBy>
+</SQLDataSource>

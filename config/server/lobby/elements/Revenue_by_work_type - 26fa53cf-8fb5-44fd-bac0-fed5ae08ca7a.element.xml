@@ -1,0 +1,43 @@
+﻿<BarChart>
+  <Author>DELL</Author>
+  <LastModified>2021-06-29-15.37.51</LastModified>
+  <RowSpan>2</RowSpan>
+  <ColumnSpan>4</ColumnSpan>
+  <Title>Revenue by work type</Title>
+  <Background>#00FFFFFF</Background>
+  <Foreground>#FF4B4A4D</Foreground>
+  <Name>Revenue_by_work_type</Name>
+  <ID>26fa53cf-8fb5-44fd-bac0-fed5ae08ca7a</ID>
+  <CustomUrl>ifsapf:frmJtTaskTab</CustomUrl>
+  <FormMappings />
+  <DataSourceId>339f4606-7753-4381-acba-1acc51021429</DataSourceId>
+  <ColumnMapping>
+    <MappedColumns>
+      <MappedColumn>
+        <Column>SALES_PRICE_AMOUNT_CURR</Column>
+        <Name>SUM SALES_PRICE_AMOUNT_CURR</Name>
+        <DisplayName>SUM SALES_PRICE_AMOUNT_CURR</DisplayName>
+        <Aggregate>SUM</Aggregate>
+        <ConditionalFormats />
+      </MappedColumn>
+      <MappedColumn>
+        <Column>WORK_TYPE_ID</Column>
+        <Name>WORK_TYPE_ID</Name>
+        <DisplayName>WORK_TYPE_ID</DisplayName>
+        <NavigateTarget>WORK_TYPE_ID</NavigateTarget>
+        <ConditionalFormats />
+      </MappedColumn>
+    </MappedColumns>
+  </ColumnMapping>
+  <XYDataSeries>
+    <TopNOptions />
+    <XColumn>
+      <Name>WORK_TYPE_ID</Name>
+    </XColumn>
+    <YColumn>
+      <Name>SALES_PRICE_AMOUNT_CURR</Name>
+      <Aggregate>SUM</Aggregate>
+    </YColumn>
+  </XYDataSeries>
+  <OptionalDataSeries />
+</BarChart>

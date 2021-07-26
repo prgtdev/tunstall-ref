@@ -1,0 +1,90 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<Page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <Author>EA- EntChamuA</Author>
+  <Keywords>c449, service delivery management</Keywords>
+  <LastModified>2021-06-29-15.40.44</LastModified>
+  <Layout>
+    <Groups>
+      <Group>
+        <Elements>
+          <Element id="c8dbebdc-1c1c-40ea-b42a-7de80894cc66" column="2" row="0" columnspan="1" rowspan="1" />
+          <Element id="3a4fc87a-5b90-4b4b-817e-e1aaacd7d506" column="2" row="1" columnspan="1" rowspan="1" />
+          <Element id="1ef8c84e-a7f0-4679-8d87-43521098f7a5" column="1" row="0" columnspan="1" rowspan="1" />
+          <Element id="90f4bfd8-892a-4fb8-8b57-a8728560cdda" column="0" row="1" columnspan="1" rowspan="1" />
+          <Element id="bc52be76-459f-4da8-a86b-b8ed955653dc" column="1" row="1" columnspan="1" rowspan="1" />
+          <Element id="c95c3bb9-9a81-4b16-bc87-5fb2087b7fa6" column="0" row="0" columnspan="1" rowspan="1" />
+        </Elements>
+      </Group>
+      <Group>
+        <Elements>
+          <Element id="a7ea5b28-9191-41d9-8de7-e2c8cad8b6df" column="0" row="0" columnspan="1" rowspan="1" />
+          <Element id="9f434416-9f4f-4424-a7d1-a667ce78379f" column="1" row="0" columnspan="1" rowspan="1" />
+        </Elements>
+      </Group>
+      <Group>
+        <Elements>
+          <Element id="b71d60d3-6113-445f-9a2c-2442c4871347" column="0" row="0" columnspan="2" rowspan="2" />
+        </Elements>
+      </Group>
+      <Group>
+        <Elements>
+          <Element id="4bd41845-69be-4ae2-9373-42f188f0a7b8" column="0" row="0" columnspan="2" rowspan="2" />
+        </Elements>
+      </Group>
+      <Group>
+        <Elements>
+          <Element id="48c27fd8-071a-4f05-a69f-2d75b509de17" column="1" row="0" columnspan="1" rowspan="1" />
+          <Element id="b6b58e86-58fb-4b0f-9ed9-179348668daa" column="0" row="0" columnspan="1" rowspan="1" />
+        </Elements>
+      </Group>
+      <Group>
+        <Elements>
+          <Element id="548aeb14-e269-4f66-9b1c-5769920af9eb" column="0" row="0" columnspan="4" rowspan="1" />
+        </Elements>
+      </Group>
+      <Group>
+        <Elements>
+          <Element id="26fa53cf-8fb5-44fd-bac0-fed5ae08ca7a" column="0" row="0" columnspan="4" rowspan="2" />
+        </Elements>
+      </Group>
+    </Groups>
+  </Layout>
+  <DataSources>
+    <DataSource id="76b23ddf-6cb5-49cf-a1cb-77b29a5ed2dc" />
+    <DataSource id="e400d64d-05c1-4736-8c10-56400845c6a0" />
+    <DataSource id="807b2300-db84-431e-a6fa-a7dc7df17c94" />
+    <DataSource id="7839b925-c16e-4601-8902-5b894d577245" />
+    <DataSource id="560d7ec2-af95-4627-bdaf-45bd110080c6" />
+    <DataSource id="f47679a8-a506-4ede-a735-ae71bb1eb028" />
+    <DataSource id="fb0b303f-194d-4e26-8b87-6b69b0b4a8e0" />
+    <DataSource id="65b807ec-a3c5-4375-bdda-667b4265fbd1" />
+    <DataSource id="06bc2c9b-90f3-477e-b82d-7a80e9524042" />
+    <DataSource id="eb82e2e1-1d17-4d17-8c2a-5b46ae9aed02" />
+    <DataSource id="61b2cdf6-db52-44c0-91f7-7ce0e78f6d5b" />
+    <DataSource id="f791c341-7e34-4880-a0e3-8d6aa5193a1e" />
+    <DataSource id="b87b48cd-933b-470c-8823-18fb8e6e01ab" />
+    <DataSource id="339f4606-7753-4381-acba-1acc51021429" />
+  </DataSources>
+  <Parameters>
+    <Parameter>
+      <Name>CONTRACT_ID</Name>
+      <Description>Contract Id</Description>
+    </Parameter>
+    <Parameter>
+      <Name>REGION_REPRESENTATIVE</Name>
+      <Description>Region Representative</Description>
+    </Parameter>
+    <Parameter>
+      <Name>BEGIN_DATE</Name>
+      <Description>Begin Date</Description>
+    </Parameter>
+    <Parameter>
+      <Name>END_DATE</Name>
+      <Description>End Date</Description>
+    </Parameter>
+  </Parameters>
+  <Filters />
+  <PageTitle>Service Delivery Management </PageTitle>
+  <PageId>bd12a32c-7b1d-45a2-832f-8745ec70817a</PageId>
+  <Translations />
+</Page>

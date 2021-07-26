@@ -1,0 +1,44 @@
+﻿<SQLDataSource>
+  <Author>DELL</Author>
+  <LastModified>2021-06-17-17.26.20</LastModified>
+  <Name>MATERIALS_READ_TO_TRANSFER</Name>
+  <ID>807b2300-db84-431e-a6fa-a7dc7df17c94</ID>
+  <Select>
+    <DataColumn>
+      <Column>COUNT(*)</Column>
+      <Name>COUNT</Name>
+    </DataColumn>
+  </Select>
+  <Where>wo_no IN
+       (SELECT wo_no
+          FROM (SELECT t2.wo_no,
+                       t2.task_seq,
+                       &amp;AO.Active_Separate_API.Get_Reg_Date(t2.wo_no) as reg_date,
+                       &amp;AO.Jt_Task_API.Get_Contract_Id(t2.task_seq) as contract_id,
+                       &amp;AO.Crm_Cust_Info_API.Get_Main_Representative_Id(&amp;AO.Jt_Task_API.Get_Customer_No(t2.task_seq)) as main_rep
+                  FROM &amp;AO.jt_task_uiv_cfv t2
+                 WHERE t2.task_seq IN
+                       (SELECT t2.task_seq
+                          FROM &amp;AO.jt_execution_instance_uiv t2
+                         WHERE t2.state = 'Assigned'
+                           AND t2.sent_date IS NULL)
+                   AND t2.task_seq IN
+                       (SELECT task_seq
+                          FROM &amp;AO.transport_task_line         ttl,
+                               &amp;AO.maint_material_req_line_uiv mt
+                         WHERE ttl.order_ref3 = mt.maint_material_order_no
+                           AND ttl.order_ref2 = mt.task_seq
+                           AND (&amp;AO.Transport_Task_API.Has_Line_In_Status_Picked(ttl.transport_task_id) =
+                               'TRUE' OR &amp;AO.Transport_Task_API.Has_Line_In_Status_Executed(ttl.transport_task_id) =
+                               'TRUE')))
+         WHERE &amp;AO.Sc_Service_Contract_API.Get_Contract_Type(&amp;AO.Jt_Task_API.Get_Contract_Id(task_seq)) = 'MS'
+           AND reg_date &gt;= TO_DATE(NVL('$BEGIN_DATE$', '01/01/1900'), 'dd/mm/yyyy')
+           AND reg_date &lt;= TO_DATE(NVL('$END_DATE$', '31/12/2999') || ' 11:59:59 PM',
+                                   'dd/mm/yyyy hh:mi:ss pm')
+           AND REPLACE(NVL(contract_id, ' '), ' ', '%') LIKE
+               REPLACE(NVL('$CONTRACT_ID$', ' '), ' ', '%')
+              
+           AND REPLACE(NVL(main_rep, ' '), ' ', '%') LIKE
+               REPLACE(NVL('$REGION_REPRESENTATIVE$', ' '), ' ', '%'))</Where>
+  <View>&amp;AO.ACTIVE_SEPARATE_UIV_CFV</View>
+</SQLDataSource>

@@ -1,0 +1,40 @@
+﻿<SQLDataSource>
+  <Author>DELL</Author>
+  <LastModified>2021-06-18-09.17.13</LastModified>
+  <Name>Completed_tasks_within_sla</Name>
+  <ID>eb82e2e1-1d17-4d17-8c2a-5b46ae9aed02</ID>
+  <Select>
+    <DataColumn>
+      <Column>WO_NO</Column>
+      <Name>WO_NO</Name>
+      <DataType>Number</DataType>
+    </DataColumn>
+    <DataColumn>
+      <Column>TASK_SEQ</Column>
+      <Name>TASK_SEQ</Name>
+      <DataType>Number</DataType>
+    </DataColumn>
+    <DataColumn>
+      <Column>STATUS</Column>
+      <Name>STATUS</Name>
+    </DataColumn>
+  </Select>
+  <Where>wo_no IN
+       (SELECT wo_no
+          FROM (SELECT wt.wo_no,
+                       &amp;AO.Jt_Task_API.Get_Contract_Id(wt.task_seq) contract_id,
+                       &amp;AO.Active_Separate_API.Get_Reg_Date(wt.wo_no) reg_date,
+                       &amp;AO.Crm_Cust_Info_API.Get_Main_Representative_Id(&amp;AO.Jt_Task_API.Get_Customer_No(wt.task_seq)) representative_id
+                  FROM &amp;AO.jt_task_uiv_cfv wt
+                 WHERE &amp;AO.Sc_Service_Contract_API.Get_Contract_Type(&amp;AO.Jt_Task_API.Get_Contract_Id(wt.task_seq)) = 'MS')
+         WHERE REPLACE(NVL(contract_id, ' '), ' ', '%') LIKE
+               REPLACE(NVL('$CONTRACT_ID$', ' '), ' ', '%')
+           AND reg_date &gt;=
+               TO_DATE(NVL('$BEGIN_DATE$', '01/01/1900'), 'dd/mm/yyyy')
+           AND reg_date &lt;=
+               TO_DATE(NVL('$END_DATE$', '31/12/2999') || ' 11:59:59 PM',
+                       'dd/mm/yyyy hh:mi:ss pm')
+           AND REPLACE(NVL(representative_id, ' '), ' ', '%') LIKE
+               REPLACE(NVL('$REGION_REPRESENTATIVE$', ' '), ' ', '%'))</Where>
+  <View>&amp;IAL.TASKS_WITHIN_SLA</View>
+</SQLDataSource>

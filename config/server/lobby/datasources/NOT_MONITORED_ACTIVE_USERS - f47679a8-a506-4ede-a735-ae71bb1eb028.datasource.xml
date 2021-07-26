@@ -1,0 +1,35 @@
+﻿<SQLDataSource>
+  <Author>DELL</Author>
+  <LastModified>2021-07-19-10.26.39</LastModified>
+  <Name>NOT_MONITORED_ACTIVE_USERS</Name>
+  <ID>f47679a8-a506-4ede-a735-ae71bb1eb028</ID>
+  <Select>
+    <DataColumn>
+      <Column>COUNT(MCH_CODE)</Column>
+      <Name>MCH_CODE</Name>
+    </DataColumn>
+  </Select>
+  <Where>mch_code IN
+       (SELECT mch_code
+          FROM (SELECT a.mch_code,
+                       a.contract,
+                       NVL(&amp;AO.C_Ea_Customization_Util_API.Get_Identity(a.mch_code,                                                                  a.contract), '') AS identity,
+                       &amp;AO.C_Ea_Customization_Util_API.Get_Contract_Id(a.mch_code,
+                                                                       a.contract) As contract_id
+                  FROM &amp;AO.equipment_functional a,
+                       &amp;AO.service_user_status_clv  b
+                 WHERE a.mch_code = b.cf$_mch_code
+                   AND a.contract = b.cf$_contract
+                   AND a.obj_level = '360_SERVICE_USER'
+                   AND b.cf$_service_user_status = 'Active'
+                   AND NVL(b.cf$_monitored, 'False') = 'False')
+         WHERE &amp;AO.Sc_Service_Contract_API.Get_Contract_Type(contract_id) = 'MS'
+           AND REPLACE(NVL(contract_id, ' '), ' ', '%') LIKE
+               REPLACE(NVL('$CONTRACT_ID$', ' '), ' ', '%')
+           AND REPLACE(NVL(&amp;AO.Crm_Cust_Info_API.Get_Main_Representative_Id(identity),
+                           ' '),
+                       ' ',
+                       '%') LIKE REPLACE(NVL('$REGION_REPRESENTATIVE$', ' '), ' ', '%'))
+</Where>
+  <View>&amp;IAL.NOT_MONITORED_ACTIVE_USERS</View>
+</SQLDataSource>

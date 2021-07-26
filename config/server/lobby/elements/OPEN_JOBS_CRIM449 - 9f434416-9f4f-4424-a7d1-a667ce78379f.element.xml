@@ -1,0 +1,20 @@
+﻿<Counter>
+  <Author>DELL</Author>
+  <LastModified>2021-06-01-14.21.14</LastModified>
+  <Title>Open Tasks</Title>
+  <Background>#FF369B30</Background>
+  <Name>OPEN_JOBS_CRIM449</Name>
+  <ID>9f434416-9f4f-4424-a7d1-a667ce78379f</ID>
+  <CustomUrl>ifsapf:frmWorkOrderPrepareTab</CustomUrl>
+  <FormMappings />
+  <DataSourceId>fb0b303f-194d-4e26-8b87-6b69b0b4a8e0</DataSourceId>
+  <ColumnMapping>
+    <MappedColumns>
+      <MappedColumn>
+        <Column>TASK_SEQ</Column>
+        <Aggregate>COUNT</Aggregate>
+        <ConditionalFormats />
+      </MappedColumn>
+    </MappedColumns>
+  </ColumnMapping>
+</Counter>

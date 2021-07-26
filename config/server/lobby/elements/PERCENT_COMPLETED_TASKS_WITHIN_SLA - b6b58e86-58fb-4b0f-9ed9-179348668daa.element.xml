@@ -1,0 +1,20 @@
+﻿<Counter>
+  <Author>DELL</Author>
+  <LastModified>2021-05-24-11.34.40</LastModified>
+  <Title>Completed Tasks within SLA</Title>
+  <Background>#FF369B30</Background>
+  <Name>PERCENT_COMPLETED_TASKS_WITHIN_SLA</Name>
+  <ID>b6b58e86-58fb-4b0f-9ed9-179348668daa</ID>
+  <CustomUrl>ifsapf:frmWorkOrderPrepareTab</CustomUrl>
+  <FormMappings />
+  <DataSourceId>61b2cdf6-db52-44c0-91f7-7ce0e78f6d5b</DataSourceId>
+  <ColumnMapping>
+    <MappedColumns>
+      <MappedColumn>
+        <Column>TASK_SEQ</Column>
+        <Aggregate>COUNT</Aggregate>
+        <ConditionalFormats />
+      </MappedColumn>
+    </MappedColumns>
+  </ColumnMapping>
+</Counter>

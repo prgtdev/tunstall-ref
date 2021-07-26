@@ -1,0 +1,41 @@
+﻿<List>
+  <Author>DELL</Author>
+  <LastModified>2021-04-07-17.36.10</LastModified>
+  <ColumnSpan>4</ColumnSpan>
+  <Title>Equipment Installed </Title>
+  <Name>Equipment_Installed_EA</Name>
+  <ID>548aeb14-e269-4f66-9b1c-5769920af9eb</ID>
+  <RefreshInterval>300</RefreshInterval>
+  <CustomUrl>ifsapf:frmEquipObjStructure</CustomUrl>
+  <OwnProcessId>1486a847-0c99-4f4e-b0ae-65c68cc40504</OwnProcessId>
+  <FormMappings />
+  <DataSourceId>b87b48cd-933b-470c-8823-18fb8e6e01ab</DataSourceId>
+  <ColumnMapping>
+    <MappedColumns>
+      <MappedColumn>
+        <Column>PART_NO</Column>
+        <Name>PART_NO</Name>
+        <DisplayName>PART_NO</DisplayName>
+        <NavigateTarget>PART_NO</NavigateTarget>
+        <ConditionalFormats />
+      </MappedColumn>
+      <MappedColumn>
+        <Column>DESCRIPTION</Column>
+        <Name>DESCRIPTION</Name>
+        <DisplayName>DESCRIPTION</DisplayName>
+        <IsNavigateParam>false</IsNavigateParam>
+        <NavigateTarget>DESCRIPTION</NavigateTarget>
+        <ConditionalFormats />
+      </MappedColumn>
+      <MappedColumn>
+        <Column>SUM(QUANTITY)</Column>
+        <Name>QUANTITY</Name>
+        <DisplayName>QUANTITY</DisplayName>
+        <IsNavigateParam>false</IsNavigateParam>
+        <NavigateTarget>SUM(QUANTITY)</NavigateTarget>
+        <ConditionalFormats />
+      </MappedColumn>
+    </MappedColumns>
+    <ShowColumnHeaders>true</ShowColumnHeaders>
+  </ColumnMapping>
+</List>

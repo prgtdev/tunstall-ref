@@ -1,0 +1,44 @@
+﻿<BarChart>
+  <Author>DELL</Author>
+  <LastModified>2021-04-09-12.28.43</LastModified>
+  <RowSpan>2</RowSpan>
+  <ColumnSpan>2</ColumnSpan>
+  <Title>SLA missed by reason</Title>
+  <Background>#00FFFFFF</Background>
+  <Foreground>#FF4B4A4D</Foreground>
+  <Name>SLA_MISSED_BY_REASON</Name>
+  <ID>b71d60d3-6113-445f-9a2c-2442c4871347</ID>
+  <CustomUrl>ifsapf:frmWorkOrderPrepareTab</CustomUrl>
+  <FormMappings />
+  <DataSourceId>06bc2c9b-90f3-477e-b82d-7a80e9524042</DataSourceId>
+  <ColumnMapping>
+    <MappedColumns>
+      <MappedColumn>
+        <Column>MISSED_SLA_REASON</Column>
+        <Name>MISSED_SLA_REASON</Name>
+        <DisplayName>MISSED_SLA_REASON</DisplayName>
+        <IsNavigateParam>false</IsNavigateParam>
+        <NavigateTarget>CF$_MISSED_SLA_REASON</NavigateTarget>
+        <ConditionalFormats />
+      </MappedColumn>
+      <MappedColumn>
+        <Column>TASK_SEQ</Column>
+        <Name>COUNT TASK_SEQ</Name>
+        <DisplayName>COUNT TASK_SEQ</DisplayName>
+        <Aggregate>COUNT</Aggregate>
+        <ConditionalFormats />
+      </MappedColumn>
+    </MappedColumns>
+  </ColumnMapping>
+  <XYDataSeries>
+    <TopNOptions />
+    <XColumn>
+      <Name>MISSED_SLA_REASON</Name>
+    </XColumn>
+    <YColumn>
+      <Name>TASK_SEQ</Name>
+      <Aggregate>COUNT</Aggregate>
+    </YColumn>
+  </XYDataSeries>
+  <OptionalDataSeries />
+</BarChart>

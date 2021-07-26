@@ -1,0 +1,43 @@
+﻿<BarChart>
+  <Author>DELL</Author>
+  <LastModified>2021-05-24-11.26.02</LastModified>
+  <RowSpan>2</RowSpan>
+  <ColumnSpan>2</ColumnSpan>
+  <Title>% completed tasks within SLA</Title>
+  <Background>#00FFFFFF</Background>
+  <Foreground>#FF4B4A4D</Foreground>
+  <Name>PERCENT_COMPLETED_TASKS_WITHIN_SLA</Name>
+  <ID>4bd41845-69be-4ae2-9373-42f188f0a7b8</ID>
+  <CustomUrl>ifsapf:frmWorkOrderPrepareTab</CustomUrl>
+  <FormMappings />
+  <DataSourceId>eb82e2e1-1d17-4d17-8c2a-5b46ae9aed02</DataSourceId>
+  <ColumnMapping>
+    <MappedColumns>
+      <MappedColumn>
+        <Column>TASK_SEQ</Column>
+        <Name>COUNT TASK_SEQ</Name>
+        <DisplayName>COUNT TASK_SEQ</DisplayName>
+        <Aggregate>COUNT</Aggregate>
+        <ConditionalFormats />
+      </MappedColumn>
+      <MappedColumn>
+        <Column>STATUS</Column>
+        <Name>STATUS</Name>
+        <DisplayName>STATUS</DisplayName>
+        <NavigateTarget>STATUS</NavigateTarget>
+        <ConditionalFormats />
+      </MappedColumn>
+    </MappedColumns>
+  </ColumnMapping>
+  <XYDataSeries>
+    <TopNOptions />
+    <XColumn>
+      <Name>STATUS</Name>
+    </XColumn>
+    <YColumn>
+      <Name>TASK_SEQ</Name>
+      <Aggregate>COUNT</Aggregate>
+    </YColumn>
+  </XYDataSeries>
+  <OptionalDataSeries />
+</BarChart>

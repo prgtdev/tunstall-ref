@@ -1,0 +1,21 @@
+﻿<Counter>
+  <Author>DELL</Author>
+  <LastModified>2021-04-07-18.04.50</LastModified>
+  <Title>WOs awaiting Warehousing</Title>
+  <Background>#FF369B30</Background>
+  <Name>WOs_awaiting_Warehousing</Name>
+  <ID>c8dbebdc-1c1c-40ea-b42a-7de80894cc66</ID>
+  <CustomUrl>ifsapf:frmWorkOrderPrepareTab</CustomUrl>
+  <OwnProcessId>0b26203d-7120-4b82-839a-b094810e400e</OwnProcessId>
+  <FormMappings />
+  <DataSourceId>76b23ddf-6cb5-49cf-a1cb-77b29a5ed2dc</DataSourceId>
+  <ColumnMapping>
+    <MappedColumns>
+      <MappedColumn>
+        <Column>TASK_SEQ</Column>
+        <Aggregate>COUNT</Aggregate>
+        <ConditionalFormats />
+      </MappedColumn>
+    </MappedColumns>
+  </ColumnMapping>
+</Counter>

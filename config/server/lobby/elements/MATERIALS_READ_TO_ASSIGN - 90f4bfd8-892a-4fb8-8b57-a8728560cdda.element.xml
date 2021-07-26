@@ -1,0 +1,20 @@
+﻿<Counter>
+  <Author>DELL</Author>
+  <LastModified>2021-06-01-13.27.59</LastModified>
+  <Title>Materials Dependent: Ready to Assign</Title>
+  <Background>#FF369B30</Background>
+  <Name>MATERIALS_READ_TO_ASSIGN</Name>
+  <ID>90f4bfd8-892a-4fb8-8b57-a8728560cdda</ID>
+  <CustomUrl>ifsapf:frmWorkOrderPrepareTab</CustomUrl>
+  <FormMappings />
+  <DataSourceId>560d7ec2-af95-4627-bdaf-45bd110080c6</DataSourceId>
+  <ColumnMapping>
+    <MappedColumns>
+      <MappedColumn>
+        <Column>*</Column>
+        <Aggregate>COUNT</Aggregate>
+        <ConditionalFormats />
+      </MappedColumn>
+    </MappedColumns>
+  </ColumnMapping>
+</Counter>

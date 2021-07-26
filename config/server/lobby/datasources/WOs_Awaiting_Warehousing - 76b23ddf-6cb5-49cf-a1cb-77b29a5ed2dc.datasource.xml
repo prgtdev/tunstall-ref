@@ -1,0 +1,62 @@
+﻿<SQLDataSource>
+  <Author>DELL</Author>
+  <LastModified>2021-06-30-12.41.41</LastModified>
+  <Name>WOs_Awaiting_Warehousing</Name>
+  <ID>76b23ddf-6cb5-49cf-a1cb-77b29a5ed2dc</ID>
+  <Select>
+    <DataColumn>
+      <Column>TASK_SEQ</Column>
+      <Name>TASK_SEQ</Name>
+      <DataType>Number</DataType>
+    </DataColumn>
+  </Select>
+  <Where>wo_no IN
+       (SELECT wo_no
+          FROM (SELECT a.task_seq,
+                       a.wo_no,
+                       a.maint_material_order_no,
+                       a.line_item_no,
+                       a.is_closed,
+                       &amp;AO.Active_Separate_API.Get_Reg_Date(a.wo_no) as reg_date,
+                       &amp;AO.Maint_Material_Req_Line_API.Get_Plan_Qty(a.maint_material_order_no,
+                                                                    a.line_item_no) as plan_qty,
+                       &amp;AO.Maint_Material_Req_Line_API.Get_Qty_Assigned(a.maint_material_order_no,
+                                                                        a.line_item_no) as qty_assigned
+                  FROM &amp;AO.maint_material_req_line_uiv a
+                
+                 WHERE &amp;AO.Maint_Material_Requisition_API.Transport_Task_Exist(a.wo_no,
+                                                                               a.maint_material_order_no,
+                                                                               a.task_seq,
+                                                                               a.line_item_no) = 'FALSE'
+                      
+                   AND (plan_qty &gt; qty_assigned OR
+                        (plan_qty = qty_assigned AND
+                        a.task_seq IN (SELECT c.task_seq
+                                          FROM &amp;AO.jt_execution_instance_uiv c
+                                         WHERE c.task_seq = a.task_seq
+                                           AND &amp;AO.Jt_Execution_Instance_API.Get_State(a.task_seq,
+                                                                                       c.execution_instance_seq) =
+                                               'Assigned')))
+                   AND a.is_closed = 0
+                   AND &amp;AO.Sc_Service_Contract_API.Get_Contract_Type(&amp;AO.Jt_Task_API.Get_Contract_Id(task_seq)) = 'MS')
+         WHERE &amp;AO.Jt_Task_API.Get_State(task_seq) = 'Released'
+           AND reg_date &gt;=
+               TO_DATE(NVL('$BEGIN_DATE$', '01/01/1900'), 'dd/mm/yyyy')
+           AND reg_date &lt;=
+               TO_DATE(NVL('$END_DATE$', '31/12/2999') || ' 11:59:59 PM',
+                       'dd/mm/yyyy hh:mi:ss pm')
+           AND REPLACE(NVL(&amp;AO.Jt_Task_API.Get_Contract_Id(task_seq), ' '),
+                       ' ',
+                       '%') LIKE
+               REPLACE(NVL('$CONTRACT_ID$', ' '), ' ', '%')
+              
+           AND REPLACE(NVL(&amp;AO.Crm_Cust_Info_API.Get_Main_Representative_Id(&amp;AO.Jt_Task_API.Get_Customer_No(task_seq)),
+                           ' '),
+                       ' ',
+                       '%') LIKE
+               REPLACE(NVL('$REGION_REPRESENTATIVE$', ' '), ' ', '%'))
+</Where>
+  <View>&amp;IAL.WOS_AWAITING_WAREHOUSE</View>
+  <OrderBy />
+  <GroupBy />
+</SQLDataSource>
