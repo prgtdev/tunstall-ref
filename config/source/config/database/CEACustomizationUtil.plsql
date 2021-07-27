@@ -1934,4 +1934,46 @@ BEGIN
 END Get_Contract_Id;
 --  C0049 EntChamuA (END)  
 
+--C0457 EntNadeeL (START) 
+PROCEDURE Create_Demand_Forecast_ IS
+   sql_stmt          VARCHAR2(32000);
+   pivot_clause      CLOB;
+   pivot_clause_date CLOB;
+BEGIN
+   SELECT LISTAGG('''' || replace(monthname||'-'||year,' ','') || '''',',') WITHIN GROUP(ORDER BY year,month ASC)
+     INTO pivot_clause
+     FROM (SELECT DISTINCT to_char(to_date(Work_Time_Calendar_API.Get_Work_Day(Period_Template_API.Get_Calendar_Id(t.contract,t.template_id),t.period_begin_counter),'DD/MM/YYYY'), 'YY') AS year,
+                to_char(to_date(Work_Time_Calendar_API.Get_Work_Day(Period_Template_API.Get_Calendar_Id(t.contract,t.template_id),t.period_begin_counter),'DD/MM/YYYY'), 'MM') AS month , 
+                to_char(to_date(Work_Time_Calendar_API.Get_Work_Day(Period_Template_API.Get_Calendar_Id(t.contract,t.template_id),t.period_begin_counter),'DD/MM/YYYY'), 'Month') AS monthname     
+             FROM PERIOD_TEMPLATE_DETAIL t
+            WHERE t.template_id = '14'
+              AND to_date(Work_Time_Calendar_API.Get_Work_Day(Period_Template_API.Get_Calendar_Id(t.contract,t.template_id),t.period_begin_counter), 'DD/MM/YYYY') BETWEEN
+                  to_date(SYSDATE, 'DD/MM/YYYY') AND
+                  add_months(to_date(SYSDATE, 'DD/MM/YYYY'), 14)
+                  AND t.contract = '2011'
+                  ORDER BY year,month);
+                  
+    Transaction_Sys.Set_Status_Info(pivot_clause,'INFO');       
+                  
+ 
+   sql_stmt := 'CREATE OR REPLACE VIEW DEMAND_FORECAST_TEMP_QRY AS
+            SELECT  *
+            FROM (SELECT   t.contract,
+                  Inventory_Part_Api.Get_Prime_Commodity(t.contract,t.part_no) AS "Comm Group",
+                  t.part_no AS "Part No",
+                  Inventory_Part_Api.Get_Description(t.contract,t.part_no) AS "Description",
+                  replace(to_char(ms_date,''Month'')||''-''||to_char(ms_date,''YY''), '' '', '''') AS month,
+                  t.forecast_lev0,
+                  t.forecast_lev1 
+         FROM level_1_forecast t
+         WHERE t.ms_set = 1
+         AND to_date(t.ms_date, ''DD/MM/YYYY'') >= to_date(SYSDATE, ''DD/MM/YYYY'')
+         ORDER BY "Comm Group" ASC)                  
+   PIVOT (SUM(forecast_lev0) AS forecast0,
+   SUM(forecast_lev1) AS forecast1 FOR month IN (' ||pivot_clause|| '))';  
+   Transaction_Sys.Set_Status_Info( sql_stmt,'INFO');
+   EXECUTE IMMEDIATE sql_stmt;
+   
+END Create_Demand_Forecast_; 
+--C0457 EntNadeeL (END)
 -------------------- LU  NEW METHODS -------------------------------------
