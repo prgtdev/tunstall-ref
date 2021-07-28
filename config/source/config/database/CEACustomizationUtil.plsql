@@ -2162,8 +2162,7 @@ BEGIN
                          ORDER BY cf$_supplier_no)
                  WHERE cf$_supplier_no IS NULL
                    AND to_date(forecast, 'DD/MM/YYYY') > trunc(SYSDATE) - 7));
-  Transaction_Sys.Set_Status_Info('PIVOT CLAUSE 01 -' || pivot_clause,'INFO'); 
-  Transaction_Sys.Set_Status_Info('PIVOT CLAUSE DATE -' || pivot_clause_date,'INFO'); 
+ 
   sql_stmt := 'CREATE OR REPLACE VIEW SUPPLIER_FORECAST_TEMP_QRY AS   
 SELECT *
   FROM (SELECT *
@@ -2298,7 +2297,6 @@ SELECT *
                    AND to_date(forecast,''DD/MM/YYYY'') > trunc(SYSDATE) - 7))                  
 PIVOT (SUM(to_number(forecast)) FOR week IN ('||pivot_clause||'))';
 
-  Transaction_Sys.Set_Status_Info(sql_stmt,'INFO');      
  execute immediate sql_stmt;
 END Create_Supp_Forecast_View_;
 -- C364 EntNadeeL (END)
