@@ -2309,9 +2309,9 @@ PROCEDURE Create_Weekly_Loading_ IS
 BEGIN
    SELECT LISTAGG('''' || ms_date || '''',',') WITHIN GROUP(ORDER BY ms_date ASC)
    INTO pivot_clause
-   FROM (SELECT to_date(Work_Time_Calendar_API.Get_Work_Day(Period_Template_API.Get_Calendar_Id(t.contract,t.template_id),t.period_end_counter),'DD/MM/YYYY') AS ms_date
+   FROM (SELECT DISTINCT to_date(Work_Time_Calendar_API.Get_Work_Day(Period_Template_API.Get_Calendar_Id(t.contract,t.template_id),t.period_end_counter),'DD/MM/YYYY') AS ms_date
           FROM PERIOD_TEMPLATE_DETAIL t
-         WHERE t.template_id = '4'
+         WHERE t.template_id = '8'
            AND t.period_begin_counter >= 0
            AND to_date(Work_Time_Calendar_API.Get_Work_Day(Period_Template_API.Get_Calendar_Id(t.contract,t.template_id),t.period_end_counter),'DD/MM/YYYY') BETWEEN to_date(SYSDATE, 'DD/MM/YYYY') AND
                to_date(SYSDATE, 'DD/MM/YYYY') + (18 * 7));
@@ -2336,7 +2336,7 @@ BEGIN
                '''' AS "Description",
                '''' AS "Product Code"
           FROM PERIOD_TEMPLATE_DETAIL t
-         WHERE t.template_id = ''4''
+         WHERE t.template_id = ''8''
            AND t.period_begin_counter >= 0
            AND to_date(Work_Time_Calendar_API.Get_Work_Day(Period_Template_API.Get_Calendar_Id(t.contract,t.template_id),t.period_end_counter),''DD/MM/YYYY'') BETWEEN to_date(SYSDATE, ''DD/MM/YYYY'') AND
                to_date(SYSDATE, ''DD/MM/YYYY'') + (18 * 7)) 
@@ -2363,7 +2363,7 @@ SELECT *
                '''' AS "Description",
                '''' AS "Product Code"
           FROM PERIOD_TEMPLATE_DETAIL t
-         WHERE t.template_id = ''4''
+         WHERE t.template_id = ''8''
            AND t.period_begin_counter >= 0
            AND to_date(Work_Time_Calendar_API.Get_Work_Day(Period_Template_API.Get_Calendar_Id(t.contract,t.template_id),t.period_end_counter),''DD/MM/YYYY'') BETWEEN to_date(SYSDATE, ''DD/MM/YYYY'') AND
                to_date(SYSDATE, ''DD/MM/YYYY'') + (18 * 7)) 
