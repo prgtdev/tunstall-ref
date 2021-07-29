@@ -2297,7 +2297,7 @@ SELECT *
                    AND to_date(forecast,''DD/MM/YYYY'') > trunc(SYSDATE) - 7))                  
 PIVOT (SUM(to_number(forecast)) FOR week IN ('||pivot_clause||'))';
 
- execute immediate sql_stmt;
+ EXECUTE IMMEDIATE sql_stmt;
 END Create_Supp_Forecast_View_;
 -- C364 EntNadeeL (END)
 
