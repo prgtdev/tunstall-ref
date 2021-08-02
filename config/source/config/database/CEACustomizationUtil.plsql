@@ -2391,4 +2391,38 @@ SELECT *
    EXECUTE IMMEDIATE sql_stmt;     
 END Create_Weekly_Loading_;
 --210728 EntNadeeL C0567 (END) 
+
+-- 210802 EntDinusK C706 (START)
+FUNCTION Get_Next_Id_Equip (
+   mch_code_     equipment_object_tab.mch_code%TYPE,
+   obj_level_    equipment_object_tab.obj_level%TYPE
+   ) RETURN VARCHAR2
+IS
+   next_object_ equipment_object_tab.mch_code%TYPE;
+   CURSOR get_max_object IS
+      SELECT CASE
+         WHEN obj_level_ IN ('210_MS_CONTRACT', '200_CONTRACT') THEN 
+          (SELECT to_char(max(to_number(substr(ef.mch_code,instr(ef.mch_code, '_', -1) + 1))) + 1) FROM equipment_functional_uiv ef WHERE ef.obj_level IN ('355_DWELLING', '340_SCHEME') AND ef.sup_mch_code = mch_code_)
+         ELSE
+          ''
+         END next_object
+      FROM dual;
+BEGIN
+	OPEN get_max_object;
+   FETCH get_max_object INTO next_object_;
+   CLOSE get_max_object;
+   IF (next_object_ IS NOT NULL) THEN 
+      IF (LENGTH(next_object_) < 4) THEN 
+         next_object_ := mch_code_ || '_' || LPAD(next_object_, 4, 0);
+      ELSE
+         next_object_ := mch_code_ || '_' || LPAD(next_object_, LENGTH(next_object_), 0);
+      END IF;  
+   END IF;   
+   RETURN next_object_;
+EXCEPTION 
+   WHEN OTHERS THEN
+      next_object_ := '';
+	   RETURN next_object_;
+END Get_Next_Id_Equip;
+-- 210802 EntDinusK C706 (END
 -------------------- LU  NEW METHODS -------------------------------------
