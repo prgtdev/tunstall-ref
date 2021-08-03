@@ -71,12 +71,12 @@
                      </properties>
                      <table-column>
                         <properties>
-                           <width>15.534271mm</width>
+                           <width>25.125416mm</width>
                         </properties>
                      </table-column>
                      <table-column>
                         <properties>
-                           <width>20.270313mm</width>
+                           <width>10.679168mm</width>
                         </properties>
                      </table-column>
                      <table-column>
@@ -91,10 +91,11 @@
                                  <font-family>Calibri</font-family>
                                  <font-size>10pt</font-size>
                                  <font-weight>bold</font-weight>
+                                 <padding-left>2pt</padding-left>
                                  <padding-top>1pt</padding-top>
-                                 <text-align>center</text-align>
+                                 <text-align>left</text-align>
                               </properties>
-                              <data>'Rec No.'</data>
+                              <data>'Repair Wo No'</data>
                               <text-field>
                                  <properties>
                                     <left>0cm</left>
@@ -109,13 +110,13 @@
                                  <font-size>10pt</font-size>
                                  <padding-top>1pt</padding-top>
                               </properties>
-                              <data>tns:TASK_SEQ</data>
+                              <data>tns:WO_NO</data>
                               <text-field>
                                  <properties>
                                     <left>0cm</left>
                                     <top>0pt</top>
                                  </properties>
-                                 <data>tns:TASK_SEQ</data>
+                                 <data>tns:WO_NO</data>
                               </text-field>
                            </table-cell>
                            <table-cell>

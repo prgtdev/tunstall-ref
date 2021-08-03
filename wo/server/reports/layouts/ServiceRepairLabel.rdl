@@ -338,6 +338,7 @@
                                           <properties>
                                              <font-family>Calibri</font-family>
                                              <font-size>10pt</font-size>
+                                             <font-weight>bold</font-weight>
                                              <text-align>center</text-align>
                                           </properties>
                                           <data>'B2'</data>
@@ -450,7 +451,7 @@
                                        <table-cell>
                                        </table-cell>
                                        <table-cell>
-                                          <data>tns:CUSTOMER_NO</data>
+                                          <data>tns:SERIAL_NO</data>
                                           <barcode>
                                              <properties>
                                                 <barcode-back-color>#ffffff</barcode-back-color>
@@ -640,12 +641,12 @@
                      </properties>
                      <table-column>
                         <properties>
-                           <width>35.664063mm</width>
+                           <width>38.468647mm</width>
                         </properties>
                      </table-column>
                      <table-column>
                         <properties>
-                           <width>10.197916mm</width>
+                           <width>10.092082mm</width>
                         </properties>
                      </table-column>
                      <table-body>
@@ -664,12 +665,12 @@
                                  </properties>
                                  <table-column>
                                     <properties>
-                                       <width>17.832031mm</width>
+                                       <width>24.84349mm</width>
                                     </properties>
                                  </table-column>
                                  <table-column>
                                     <properties>
-                                       <width>17.69974mm</width>
+                                       <width>13.625157mm</width>
                                     </properties>
                                  </table-column>
                                  <table-body>
@@ -684,7 +685,7 @@
                                              <font-weight>bold</font-weight>
                                              <padding-left>2pt</padding-left>
                                           </properties>
-                                          <data>'Serv Ord'</data>
+                                          <data>'Work Order'</data>
                                           <text-field>
                                              <properties>
                                                 <left>0cm</left>
@@ -720,7 +721,7 @@
                                              <font-weight>bold</font-weight>
                                              <padding-left>2pt</padding-left>
                                           </properties>
-                                          <data>'Rec  No.'</data>
+                                          <data>'Repair WO'</data>
                                           <text-field>
                                              <properties>
                                                 <left>0cm</left>
@@ -751,23 +752,23 @@
                            <table-cell>
                               <table>
                                  <properties>
-                                    <left>2.645834mm</left>
+                                    <left>1.375834mm</left>
                                     <table-layout>fixed</table-layout>
                                     <top>0mm</top>
                                  </properties>
                                  <table-column>
                                     <properties>
-                                       <width>0.731423mm</width>
+                                       <width>0.571677mm</width>
                                     </properties>
                                  </table-column>
                                  <table-column>
                                     <properties>
-                                       <width>6.02309mm</width>
+                                       <width>6mm</width>
                                     </properties>
                                  </table-column>
                                  <table-column>
                                     <properties>
-                                       <width>0.79757mm</width>
+                                       <width>1mm</width>
                                     </properties>
                                  </table-column>
                                  <table-body>
@@ -782,7 +783,7 @@
                                           <properties>
                                              <color>#ffffff</color>
                                              <font-family>Arial</font-family>
-                                             <font-size>2pt</font-size>
+                                             <font-size>3pt</font-size>
                                              <text-align>center</text-align>
                                           </properties>
                                           <data>'dummy'</data>
@@ -803,12 +804,12 @@
                                     </table-row>
                                     <table-row>
                                        <properties>
-                                          <height>5.449826mm</height>
+                                          <height>5.926076mm</height>
                                        </properties>
                                        <table-cell>
                                        </table-cell>
                                        <table-cell>
-                                          <data>tns:WO_NO</data>
+                                          <data>tns:REPAIR_WO_NO</data>
                                           <barcode>
                                              <properties>
                                                 <barcode-back-color>#ffffff</barcode-back-color>
@@ -891,12 +892,12 @@
                      </properties>
                      <table-column>
                         <properties>
-                           <width>24.583333mm</width>
+                           <width>18.233333mm</width>
                         </properties>
                      </table-column>
                      <table-column>
                         <properties>
-                           <width>24.583333mm</width>
+                           <width>30.933333mm</width>
                         </properties>
                      </table-column>
                      <table-body>
@@ -1003,6 +1004,7 @@
                                        <table-cell>
                                           <properties>
                                              <font-family>Calibri</font-family>
+                                             <font-size>8pt</font-size>
                                              <font-weight>bold</font-weight>
                                              <padding-left>2pt</padding-left>
                                           </properties>
@@ -1020,7 +1022,7 @@
                                        <table-cell>
                                           <properties>
                                              <font-family>Calibri</font-family>
-                                             <font-size>6pt</font-size>
+                                             <font-size>5pt</font-size>
                                              <font-weight>normal</font-weight>
                                              <padding-left>2pt</padding-left>
                                           </properties>
@@ -1041,7 +1043,7 @@
                                        <table-cell>
                                           <properties>
                                              <font-family>Calibri</font-family>
-                                             <font-size>6pt</font-size>
+                                             <font-size>5pt</font-size>
                                              <font-weight>normal</font-weight>
                                              <padding-left>2pt</padding-left>
                                           </properties>
@@ -1062,7 +1064,7 @@
                                        <table-cell>
                                           <properties>
                                              <font-family>Calibri</font-family>
-                                             <font-size>6pt</font-size>
+                                             <font-size>5pt</font-size>
                                              <font-weight>normal</font-weight>
                                              <padding-left>2pt</padding-left>
                                           </properties>
@@ -1080,13 +1082,10 @@
                                        </table-cell>
                                     </table-row>
                                     <table-row>
-                                       <properties>
-                                          <height>2.67716mm</height>
-                                       </properties>
                                        <table-cell>
                                           <properties>
                                              <font-family>Calibri</font-family>
-                                             <font-size>6pt</font-size>
+                                             <font-size>5pt</font-size>
                                              <font-weight>normal</font-weight>
                                              <padding-left>2pt</padding-left>
                                           </properties>
@@ -1107,7 +1106,7 @@
                                        <table-cell>
                                           <properties>
                                              <font-family>Calibri</font-family>
-                                             <font-size>6pt</font-size>
+                                             <font-size>5pt</font-size>
                                              <font-weight>normal</font-weight>
                                              <padding-left>2pt</padding-left>
                                           </properties>
@@ -1121,6 +1120,48 @@
                                                 <top>0pt</top>
                                              </properties>
                                              <data>'BTLead'</data>
+                                          </text-field>
+                                       </table-cell>
+                                    </table-row>
+                                    <table-row>
+                                       <table-cell>
+                                          <properties>
+                                             <font-family>Calibri</font-family>
+                                             <font-size>5pt</font-size>
+                                             <font-weight>normal</font-weight>
+                                             <padding-left>2pt</padding-left>
+                                          </properties>
+                                          <data>'Clip'</data>
+                                          <conditions>
+                                             <visible>tns:CLIP_DB = &quot;TRUE&quot;</visible>
+                                          </conditions>
+                                          <text-field>
+                                             <properties>
+                                                <left>0cm</left>
+                                                <top>0pt</top>
+                                             </properties>
+                                             <data>'Clip'</data>
+                                          </text-field>
+                                       </table-cell>
+                                    </table-row>
+                                    <table-row>
+                                       <table-cell>
+                                          <properties>
+                                             <font-family>Calibri</font-family>
+                                             <font-size>5pt</font-size>
+                                             <font-weight>normal</font-weight>
+                                             <padding-left>2pt</padding-left>
+                                          </properties>
+                                          <data>'Aerial'</data>
+                                          <conditions>
+                                             <visible>tns:AERIAL_DB= &quot;TRUE&quot;</visible>
+                                          </conditions>
+                                          <text-field>
+                                             <properties>
+                                                <left>0cm</left>
+                                                <top>0pt</top>
+                                             </properties>
+                                             <data>'Areal'</data>
                                           </text-field>
                                        </table-cell>
                                     </table-row>
@@ -1182,6 +1223,7 @@
                                              <font-family>Calibri</font-family>
                                              <font-size>8pt</font-size>
                                              <font-weight>normal</font-weight>
+                                             <padding-top>2pt</padding-top>
                                           </properties>
                                           <data>tns:ORIGINAL_TRIGGER</data>
                                           <text-field>
@@ -1240,6 +1282,7 @@
                                              <font-family>Calibri</font-family>
                                              <font-size>8pt</font-size>
                                              <font-weight>normal</font-weight>
+                                             <padding-top>2pt</padding-top>
                                           </properties>
                                           <data>tns:OTHER_INFO</data>
                                           <text-field>

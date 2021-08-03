@@ -35,22 +35,22 @@
          </table-column>
          <table-column>
             <properties>
-               <width>10.270416mm</width>
+               <width>7.161562mm</width>
             </properties>
          </table-column>
          <table-column>
             <properties>
-               <width>16.417744mm</width>
+               <width>16.153161mm</width>
             </properties>
          </table-column>
          <table-column>
             <properties>
-               <width>12.978159mm</width>
+               <width>15.028679mm</width>
             </properties>
          </table-column>
          <table-column>
             <properties>
-               <width>13.375035mm</width>
+               <width>14.697952mm</width>
             </properties>
          </table-column>
          <table-body>
@@ -88,37 +88,60 @@
                      <font-family>Calibri</font-family>
                      <font-size>10pt</font-size>
                      <font-weight>bold</font-weight>
-                     <number-columns-spanned>2</number-columns-spanned>
+                     <number-columns-spanned>5</number-columns-spanned>
                      <text-align>center</text-align>
                   </properties>
-                  <data>'Rec No.'</data>
-                  <text-field>
+                  <table>
                      <properties>
-                        <left>0cm</left>
-                        <top>0pt</top>
+                        <font-weight>bold</font-weight>
+                        <left>0mm</left>
+                        <table-layout>fixed</table-layout>
+                        <top>0mm</top>
                      </properties>
-                     <data>'Rec No.'</data>
-                  </text-field>
-               </table-cell>
-               <table-cell>
-                  <properties>
-                     <border-color>#000000</border-color>
-                     <border-left-color>#ffffff</border-left-color>
-                     <border-style>solid</border-style>
-                     <border-width>0.5pt</border-width>
-                     <font-family>Calibri</font-family>
-                     <font-size>10pt</font-size>
-                     <number-columns-spanned>3</number-columns-spanned>
-                     <padding-left>4pt</padding-left>
-                  </properties>
-                  <data>tns:WO_NO</data>
-                  <text-field>
-                     <properties>
-                        <left>0cm</left>
-                        <top>0pt</top>
-                     </properties>
-                     <data>tns:WO_NO</data>
-                  </text-field>
+                     <table-column>
+                        <properties>
+                           <width>29.48401mm</width>
+                        </properties>
+                     </table-column>
+                     <table-column>
+                        <properties>
+                           <width>33.45276mm</width>
+                        </properties>
+                     </table-column>
+                     <table-body>
+                        <table-row>
+                           <table-cell>
+                              <properties>
+                                 <font-weight>bold</font-weight>
+                                 <padding-left>2pt</padding-left>
+                                 <padding-top>2pt</padding-top>
+                              </properties>
+                              <data>'Repair Wo No'</data>
+                              <text-field>
+                                 <properties>
+                                    <left>0cm</left>
+                                    <top>0pt</top>
+                                 </properties>
+                                 <data>'Repair Wo No'</data>
+                              </text-field>
+                           </table-cell>
+                           <table-cell>
+                              <properties>
+                                 <font-weight>bold</font-weight>
+                                 <padding-top>2pt</padding-top>
+                              </properties>
+                              <data>tns:WO_NO</data>
+                              <text-field>
+                                 <properties>
+                                    <left>0cm</left>
+                                    <top>0pt</top>
+                                 </properties>
+                                 <data>tns:WO_NO</data>
+                              </text-field>
+                           </table-cell>
+                        </table-row>
+                     </table-body>
+                  </table>
                </table-cell>
             </table-row>
             <table-row>
@@ -446,7 +469,7 @@
                      <padding-left>4pt</padding-left>
                      <padding-top>2pt</padding-top>
                   </properties>
-                  <data>'Operator Instructions -                 Tick = OK      Fail = Rnter Code'</data>
+                  <data>'Operator Instructions -                 Tick = OK      Fail = Enter Code'</data>
                   <text-field>
                      <properties>
                         <left>0cm</left>
