@@ -2584,8 +2584,8 @@ PROCEDURE Create_Weekly_Loading_ IS
    INTO pivot_clause
    FROM (SELECT DISTINCT to_date(Work_Time_Calendar_API.Get_Work_Day(Period_Template_API.Get_Calendar_Id(t.contract,t.template_id),t.period_end_counter),'DD/MM/YYYY') AS ms_date
           FROM PERIOD_TEMPLATE_DETAIL t
-         WHERE t.template_id = '9'
-      AND t.contract= '2012'
+         WHERE t.template_id = '4'
+      AND t.contract= '2011'
            AND t.period_begin_counter >= 0
            AND to_date(Work_Time_Calendar_API.Get_Work_Day(Period_Template_API.Get_Calendar_Id(t.contract,t.template_id),t.period_end_counter),'DD/MM/YYYY') BETWEEN to_date(SYSDATE, 'DD/MM/YYYY') AND
                to_date(SYSDATE, 'DD/MM/YY') + (18 * 7));
@@ -2610,8 +2610,8 @@ PROCEDURE Create_Weekly_Loading_ IS
                '''' AS "Description",
                '''' AS "Product Code"
           FROM PERIOD_TEMPLATE_DETAIL t
-         WHERE t.template_id = ''9''
-         AND t.contract= ''2012''
+         WHERE t.template_id = ''4''
+         AND t.contract= ''2011''
            AND t.period_begin_counter >= 0
            AND to_date(Work_Time_Calendar_API.Get_Work_Day(Period_Template_API.Get_Calendar_Id(t.contract,t.template_id),t.period_end_counter),''DD/MM/YYYY'') BETWEEN to_date(SYSDATE, ''DD/MM/YYYY'') AND
                to_date(SYSDATE, ''DD/MM/YY'') + (18 * 7)) 
@@ -2638,8 +2638,8 @@ SELECT *
                '''' AS "Description",
                '''' AS "Product Code"
           FROM PERIOD_TEMPLATE_DETAIL t
-         WHERE t.template_id = ''9''
-         AND t.contract= ''2012''
+         WHERE t.template_id = ''4''
+         AND t.contract= ''2011''
            AND t.period_begin_counter >= 0
            AND to_date(Work_Time_Calendar_API.Get_Work_Day(Period_Template_API.Get_Calendar_Id(t.contract,t.template_id),t.period_end_counter),''DD/MM/YYYY'') BETWEEN to_date(SYSDATE, ''DD/MM/YYYY'') AND
                to_date(SYSDATE, ''DD/MM/YY'') + (18 * 7)) 
