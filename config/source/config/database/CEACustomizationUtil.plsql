@@ -3547,4 +3547,42 @@ EXCEPTION
       RETURN NULL; 
 END Get_Warranty_Expiray_Date;
 -- C526 EntPragG (END)
+
+--C0380 EntPrageG (START)   
+FUNCTION Get_Allowed_Tax_Codes__(
+   company_    IN VARCHAR2,
+   contract_   IN VARCHAR2,
+   customer_   IN VARCHAR2,
+   catalog_no_ IN VARCHAR2) RETURN VARCHAR2
+IS
+   allowed_tax_codes_ VARCHAR2(2000);
+   stmt_ VARCHAR2(2000);
+BEGIN
+   stmt_ := 
+    'SELECT LISTAGG(fee_code, '', '') WITHIN GROUP(ORDER BY fee_code) fee_code
+     FROM (SELECT fee_code
+             FROM tax_code_restricted
+            WHERE fee_code IN
+                  (SELECT a.cf$_Tax_Code
+                     FROM sales_part_tax_code_clv a
+                    WHERE a.cf$_sales_part_no = :1
+                      AND a.cf$_site = :2)
+              AND fee_code IN
+                  (SELECT b.cf$_tax_code
+                     FROM cust_applicable_tax_code_clv b
+                    WHERE b.cf$_company = :3
+                      AND b.cf$_customer = :4)
+              AND COMPANY = :5)';
+   IF Database_SYS.View_Exist('SALES_PART_TAX_CODE_CLV') AND Database_SYS.View_Exist('CUST_APPLICABLE_TAX_CODE_CLV') THEN
+      @ApproveDynamicStatement(2021-08-05,EntPragG)
+      EXECUTE IMMEDIATE stmt_    
+         INTO allowed_tax_codes_
+        USING catalog_no_,contract_,company_,customer_,company_;
+   END IF;          
+   RETURN allowed_tax_codes_;
+EXCEPTION
+   WHEN OTHERS THEN
+      RETURN NULL;
+END Get_Allowed_Tax_Codes__;
+--C0380 EntPrageG (END)
 -------------------- LU  NEW METHODS -------------------------------------
