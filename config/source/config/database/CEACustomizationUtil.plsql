@@ -3585,4 +3585,173 @@ EXCEPTION
       RETURN NULL;
 END Get_Allowed_Tax_Codes__;
 --C0380 EntPrageG (END)
+--C0613 EntChathI (START)
+FUNCTION Check_Chergeable(wo_no_   IN NUMBER,
+                          company_ VARCHAR2) RETURN VARCHAR2 
+IS
+   
+   dummy_ NUMBER;
+   ready_to_invoice_ VARCHAR2(5);
+   
+   CURSOR get_ready_to_invoice IS
+   SELECT cf$_ready_to_invoice
+     FROM ACTIVE_SEPARATE_CFT 
+    WHERE rowkey IN (SELECT objkey
+                      FROM ACTIVE_SEPARATE_UIV
+                     WHERE wo_no = wo_no_
+                       AND company =company_);
+                                       
+   CURSOR get_sales_line_info IS
+    SELECT 1
+      FROM JT_TASK_SALES_LINE_UIV 
+     WHERE wo_no = wo_no_
+       AND company = company_
+       AND state='Invoiceable';
+       
+BEGIN
+   
+    OPEN get_ready_to_invoice;
+    FETCH get_ready_to_invoice INTO ready_to_invoice_;
+    CLOSE get_ready_to_invoice;
+    
+    IF (NVL(ready_to_invoice_,'FALSE') ='FALSE')THEN
+         OPEN get_sales_line_info;
+         FETCH get_sales_line_info INTO dummy_;
+        IF(get_sales_line_info%FOUND)THEN
+           RETURN 'TRUE';
+        ELSE
+           CLOSE get_sales_line_info;
+           RETURN 'FALSE';
+        END IF;
+    ELSE
+        RETURN 'FALSE';
+    END IF;    
+   
+ END Check_Chergeable;
+ 
+ FUNCTION Check_Non_Chergeable(wo_no_   IN NUMBER,
+                               company_ VARCHAR2) RETURN VARCHAR2 
+IS
+   
+   dummy_ NUMBER;
+   ready_to_invoice_ VARCHAR2(5);
+   
+   CURSOR get_ready_to_invoice IS
+   SELECT cf$_ready_to_invoice
+     FROM ACTIVE_SEPARATE_CFT 
+    WHERE rowkey IN (SELECT objkey
+                      FROM ACTIVE_SEPARATE_UIV
+                     WHERE wo_no = wo_no_
+                       AND company =company_);
+                                       
+   CURSOR get_sales_line_info IS
+    SELECT 1
+      FROM JT_TASK_SALES_LINE_UIV 
+     WHERE wo_no = wo_no_
+       AND company = company_
+       AND state='Invoiceable';
+       
+BEGIN
+   
+    OPEN get_ready_to_invoice;
+    FETCH get_ready_to_invoice INTO ready_to_invoice_;
+    CLOSE get_ready_to_invoice;
+    
+    IF (NVL(ready_to_invoice_,'FALSE') ='FALSE')THEN
+         OPEN get_sales_line_info;
+         FETCH get_sales_line_info INTO dummy_;
+        IF(get_sales_line_info%NOTFOUND)THEN
+           RETURN 'TRUE';
+        ELSE
+           CLOSE get_sales_line_info;
+           RETURN 'FALSE';
+        END IF;
+    ELSE
+        RETURN 'FALSE';
+    END IF;    
+   
+ END Check_Non_Chergeable;
+ 
+ FUNCTION Check_Inv_Preview(wo_no_ IN NUMBER) RETURN VARCHAR2 IS
+      temp_               VARCHAR2(5) := 'FALSE';
+      task_               NUMBER;
+      sales_lines_        NUMBER;
+      journal_            NUMBER;
+      service_invoice_id_ NUMBER;
+   
+      CURSOR get_task(wo_no_ NUMBER) IS
+         SELECT 1
+           FROM ACTIVE_SEPARATE_UIV t
+          WHERE t.wo_no = wo_no_
+            AND t.STATE = 'Reported'
+            AND (SELECT t.cf$_ready_to_invoice
+                   FROM ACTIVE_SEPARATE_CFT t
+                  WHERE rowkey IN (SELECT objkey
+                                     FROM ACTIVE_SEPARATE_UIV
+                                    WHERE wo_no = wo_no_)) = 'TRUE';
+   
+      CURSOR get_sales_lines(wo_no_ NUMBER) IS
+         SELECT 1
+           FROM JT_TASK_SALES_LINE_UIV
+          WHERE wo_no = wo_no_
+            AND state = 'Invoiceable';
+   
+      CURSOR get_journal_info(wo_no_ NUMBER) IS
+         SELECT 1
+           FROM (SELECT DT_CRE
+                   FROM WORK_ORDER_JOURNAL
+                  WHERE wo_no = wo_no_
+                    AND SOURCE_DB = 'WORK_ORDER'
+                    AND EVENT_TYPE_DB = 'STATUS_CHANGE'
+                    AND NEW_VALUE = 'REPORTED'
+                  ORDER BY DT_CRE DESC)
+          WHERE ROWNUM = 1
+            AND TRUNC(DT_CRE) <= TRUNC(SYSDATE) - 3;
+   
+      CURSOR get_inv_prev(wo_no_ NUMBER) IS
+         SELECT service_invoice_id
+         FROM SERVICE_INVOICE_UIV
+ where (service_invoice_id IN
+       (SELECT service_invoice_id
+           FROM JT_TASK_SALES_LINE_UIV
+          WHERE ((task_seq IN (SELECT task_seq
+                                 FROM JT_TASK_UIV
+                                WHERE wo_no = wo_no_)) OR
+                ((task_seq IS NULL AND wo_no = wo_no_) AND
+                (COST_TYPE_DB = 'FIXED_QUOTATION')))));
+   
+   BEGIN
+      OPEN get_task(wo_no_);
+      FETCH get_task
+         INTO task_;
+      CLOSE get_task;
+   
+      IF (task_ = 1) THEN
+      
+         OPEN get_sales_lines(wo_no_);
+         FETCH get_sales_lines
+            INTO sales_lines_;
+         CLOSE get_sales_lines;
+      
+         IF (sales_lines_ = 1) THEN
+            OPEN get_journal_info(wo_no_);
+            FETCH get_journal_info
+               INTO journal_;
+            CLOSE get_journal_info;
+         
+            OPEN get_inv_prev(wo_no_);
+            FETCH get_inv_prev
+               INTO service_invoice_id_;
+            CLOSE get_inv_prev;
+         END IF;
+      END IF;
+   
+      IF (task_ = 1 AND journal_ = 1 AND service_invoice_id_ IS NULL) THEN
+         temp_ := 'TRUE';
+      END IF;
+   
+      RETURN temp_;
+   
+   END Check_Inv_Preview;
+ --C0613 EntChathI (END)
 -------------------- LU  NEW METHODS -------------------------------------
