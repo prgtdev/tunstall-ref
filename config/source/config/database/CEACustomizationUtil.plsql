@@ -3452,10 +3452,12 @@ BEGIN
 
 -- C526 EntPragG (START)
 FUNCTION Get_Warranty_Expiray_Date(
+   wo_no_     IN VARCHAR2,
    barcode_   IN VARCHAR2)RETURN DATE
 IS  
    part_no_ VARCHAR2(20);
    
+   contract_ VARCHAR2(20);
    year_ NUMBER;
    week_ NUMBER;
    
@@ -3506,7 +3508,7 @@ IS
       period_          OUT NUMBER,
       time_unit_       OUT VARCHAR2,
       warranty_id_      IN NUMBER,
-      warranty_Type_id_ IN VARCHAR2)
+      warranty_type_id_ IN VARCHAR2)
    IS
    BEGIN
       SELECT max_value,
@@ -3514,18 +3516,18 @@ IS
         INTO period_,time_unit_
         FROM cust_warranty_condition
        WHERE warranty_id = warranty_id_
-         AND warranty_type_id = warranty_Type_id_;
+         AND warranty_type_id = warranty_type_id_;
    EXCEPTION
       WHEN NO_DATA_FOUND THEN
          period_ := NULL;
          time_unit_ := NULL;   
-   END Get_Warranty_Info___;      
-
+   END Get_Warranty_Info___;
 BEGIN
+   contract_ := Active_Separate_API.Get_Contract(wo_no_);   
    Extract_Data_From_Barcode___(part_no_,year_,week_,barcode_);
    
    warranty_start_date_ := Get_Begin_Date__(year_,NULL,NULL, week_);   
-   warranty_id_ := Part_Catalog_API.Get_Cust_Warranty_Id(part_no_);
+   warranty_id_ := Sales_Part_API.Get_Cust_Warranty_Id(contract_,part_no_);
    warranty_type_id_ := Get_Warranty_Type_Id___(warranty_id_);
    Get_Warranty_Info___(period_,time_unit_,warranty_id_,warranty_type_id_);
    
