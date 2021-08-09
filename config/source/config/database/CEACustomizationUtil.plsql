@@ -3754,4 +3754,150 @@ BEGIN
    
    END Check_Inv_Preview;
  --C0613 EntChathI (END)
+ 
+ --C0335 EntChathI (START)
+ PROCEDURE Sales_Contract_Auto_Closure IS
+  
+    remaining_amt_        NUMBER := 0;
+    open_afp_exist_       VARCHAR2(5);
+    total_paid_           NUMBER := 0;
+    contract_sales_value_ NUMBER := 0;
+  
+    valid_to_close_ BOOLEAN := true;
+    state_          VARCHAR2(10);
+    attr_           VARCHAR2(32000);
+    afp_no_         NUMBER;
+    
+    $IF (Component_Apppay_SYS.INSTALLED) $THEN
+    temp_afp_no_      NUMBER;
+    payment_per_curr_ NUMBER;
+    info_ varchar2(32000):=null;
+  
+    CURSOR cur_codes(contract_no_ VARCHAR2) IS
+      SELECT DISTINCT (currency_code)
+        FROM app_for_payment
+       WHERE contract_no = contract_no_;
+  
+  
+    CURSOR get_remaining_amount(contract_no_ VARCHAR2, afp_no_ NUMBER) IS
+      SELECT SUM(App_For_Payment_API.Get_Tot_Ret_remaining(contract_no_,afp_no_))
+        FROM app_for_payment
+       WHERE contract_no = contract_no
+         AND objstate <> 'Cancelled'
+       GROUP BY currency_code, supply_country, project_id, billing_seq;
+    $END
+  
+    CURSOR get_eligible_sales_contracts IS
+      SELECT *
+        FROM (SELECT t.*
+                FROM SALES_CONTRACT t
+               where APP_FOR_PAYMENT_API.Get_Tot_remaining_Ret_Per_Con(CONTRACT_NO) = 0
+                 AND state NOT IN ('Cancelled', 'Closed')
+                 AND EXISTS
+               (SELECT 1
+                        FROM APP_FOR_PAYMENT_MAIN p
+                       where FIN_RELEASED_ALL = 'TRUE'
+                         AND p.CONTRACT_NO = t.CONTRACT_NO)
+              UNION
+              SELECT t.*
+                FROM SALES_CONTRACT t
+               where state NOT IN ('Cancelled', 'Closed')
+                 AND INT_RETENTION = 0
+                    -- to check if any APF exist AND then check fully Invoiced
+                 AND EXISTS (SELECT 1
+                        FROM app_for_payment_tab
+                       where contract_no = t.contract_no)
+                 AND NOT EXISTS
+               (SELECT 1
+                        FROM APP_FOR_PAYMENT_MAIN p
+                       where STATE NOT IN ('Fully Paid')
+                         AND p.CONTRACT_NO = t.CONTRACT_NO))
+                         ;
+  BEGIN
+    state_ := 'Closed';
+  
+    FOR rec_ IN get_eligible_sales_contracts LOOP
+      
+      Client_SYS.Clear_Attr(attr_);
+             
+      -- The contract must be IN the Completed status to be eligible to close
+      IF (rec_.state NOT IN ('Completed')) THEN
+        valid_to_close_ := false;
+        Client_SYS.Add_To_Attr('CF$_ERROR_REPORTED','Sales Contract must be in Completed status.', attr_);
+         SALES_CONTRACT_CFP.Cf_Modify__(info_, rec_.objid,attr_,'','DO');
+        CONTINUE;
+      END IF;
+      --check for core closure validations    
+      -- START validate
+      $IF (Component_Apppay_SYS.INSTALLED) $THEN
+      
+       SELECT max(afp_no) INTO afp_no_
+        FROM app_for_payment WHERE contract_no = rec_.contract_no   AND objstate <> 'Cancelled';
+        
+      OPEN get_remaining_amount(rec_.contract_no, afp_no_);
+     FETCH get_remaining_amount
+      INTO remaining_amt_;
+     CLOSE get_remaining_amount;
+    
+      open_afp_exist_ := App_For_Payment_API.Check_Open_Afp_Exist(rec_.contract_no);
+    
+      FOR item_ IN cur_codes(rec_.contract_no) LOOP
+        temp_afp_no_      := App_For_Payment_API.Get_Latest_Afp_No_Curr(rec_.contract_no,
+                                                                        item_.currency_code);
+        payment_per_curr_ := Afp_Payment_API.Get_App_Paid_To_Date(rec_.company,
+                                                                  rec_.contract_no,
+                                                                  temp_afp_no_);
+        total_paid_       := total_paid_ + payment_per_curr_;
+      END LOOP;
+      $END
+    
+      IF (open_afp_exist_ = 'TRUE') THEN
+        valid_to_close_ := false;
+        Client_SYS.Add_To_Attr('CF$_ERROR_REPORTED','There are application for payments not in Fully Paid or Cancelled statuses.', attr_);
+        
+        SALES_CONTRACT_CFP.Cf_Modify__(info_, rec_.objid,attr_,'','DO');
+        CONTINUE;
+        
+      END IF;
+    
+      IF (remaining_amt_ != 0) THEN
+        valid_to_close_ := false;
+        Client_SYS.Add_To_Attr('CF$_ERROR_REPORTED','The retention is not released fully in application for payments.', attr_);
+        
+        SALES_CONTRACT_CFP.Cf_Modify__(info_, rec_.objid,attr_,'','DO');
+        CONTINUE;
+        
+      END IF;
+    
+      contract_sales_value_ := Contract_Revision_Util_API.Get_Contract_Sales_Value_Co(rec_.contract_no,
+                                                                                      Contract_Revision_Util_API.Get_Active_Revision(rec_.contract_no));
+    
+      IF (NVL(contract_sales_value_,0) > NVL(total_paid_,0)) THEN
+        valid_to_close_ := false;
+        Client_SYS.Add_To_Attr('CF$_ERROR_REPORTED','The total paid amount on all applications must be equal to (or higher) than the total contract sales value.', attr_);
+      
+        SALES_CONTRACT_CFP.Cf_Modify__(info_, rec_.objid,attr_,'','DO'); 
+       CONTINUE;
+       
+      END IF;
+      -- END validate
+      -- START finaite state set
+      IF (valid_to_close_) THEN
+        -- Finite_State_Set
+        UPDATE sales_contract_tab
+           SET rowstate = state_, rowversion = sysdate
+         WHERE contract_no = rec_.contract_no;
+        rec_.objstate := state_;
+      END IF;
+      -- END FINite state set
+      -- START Calculate_Revenue
+      IF (Contract_Project_API.Has_Connected_Activity(rec_.contract_no) = 'TRUE') THEN
+         Contract_Project_API.Calculate_Revenue(rec_.contract_no);
+      END IF;
+      -- END Calculate_Revenue
+    END LOOP;
+  
+ END Sales_Contract_Auto_Closure;
+  --C0335 EntChathI (START)
+ 
 -------------------- LU  NEW METHODS -------------------------------------
