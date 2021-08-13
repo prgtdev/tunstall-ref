@@ -736,6 +736,46 @@
                            </xs:all>
                         </xs:complexType>
                      </xs:element>
+                     <xs:element name="PRINT_APP_LABEL">
+                        <xs:complexType>
+                           <xs:all minOccurs="1" maxOccurs="1">
+                              <xs:element name="DISPLAY_TEXT" nillable="true">
+                                 <xs:simpleType>
+                                    <xs:restriction base="xs:string">
+                                       <xs:maxLength value="200"/>
+                                    </xs:restriction>
+                                 </xs:simpleType>
+                              </xs:element>
+                              <xs:element name="VALUE" nillable="true">
+                                 <xs:simpleType>
+                                    <xs:restriction base="xs:string">
+                                       <xs:maxLength value="200"/>
+                                    </xs:restriction>
+                                 </xs:simpleType>
+                              </xs:element>
+                           </xs:all>
+                        </xs:complexType>
+                     </xs:element>
+                     <xs:element name="PRINT_CONS_LABEL">
+                        <xs:complexType>
+                           <xs:all minOccurs="1" maxOccurs="1">
+                              <xs:element name="DISPLAY_TEXT" nillable="true">
+                                 <xs:simpleType>
+                                    <xs:restriction base="xs:string">
+                                       <xs:maxLength value="200"/>
+                                    </xs:restriction>
+                                 </xs:simpleType>
+                              </xs:element>
+                              <xs:element name="VALUE" nillable="true">
+                                 <xs:simpleType>
+                                    <xs:restriction base="xs:string">
+                                       <xs:maxLength value="200"/>
+                                    </xs:restriction>
+                                 </xs:simpleType>
+                              </xs:element>
+                           </xs:all>
+                        </xs:complexType>
+                     </xs:element>
                   </xs:all>
                </xs:complexType>
             </xs:element>
@@ -789,7 +829,7 @@
                                     <xs:choice minOccurs="0" maxOccurs="1">
                                        <xs:element name="DETAIL">
                                           <xs:complexType>
-                                             <xs:choice minOccurs="0" maxOccurs="10">
+                                             <xs:choice minOccurs="0" maxOccurs="13">
                                                 <xs:element name="PART_NO" nillable="true" minOccurs="0">
                                                    <xs:simpleType>
                                                       <xs:restriction base="xs:string">
@@ -839,6 +879,13 @@
                                                       </xs:restriction>
                                                    </xs:simpleType>
                                                 </xs:element>
+                                                <xs:element name="W_D_R_NO" nillable="true" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="200"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
                                                 <xs:element name="EXPIRATION_DATE" nillable="true" minOccurs="0">
                                                    <xs:simpleType>
                                                       <xs:restriction base="xs:string">
@@ -854,6 +901,20 @@
                                                    </xs:simpleType>
                                                 </xs:element>
                                                 <xs:element name="DEFAULT_LOCATION_NO" nillable="true" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="200"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="PRINT_APP_LABEL" nillable="true" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="200"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="PRINT_CONS_LABEL" nillable="true" minOccurs="0">
                                                    <xs:simpleType>
                                                       <xs:restriction base="xs:string">
                                                          <xs:maxLength value="200"/>
@@ -880,7 +941,7 @@
                            <xs:sequence minOccurs="0" maxOccurs="unbounded">
                               <xs:element name="DETAIL">
                                  <xs:complexType>
-                                    <xs:choice minOccurs="0" maxOccurs="10">
+                                    <xs:choice minOccurs="0" maxOccurs="13">
                                        <xs:element name="PART_NO" nillable="true" minOccurs="0">
                                           <xs:simpleType>
                                              <xs:restriction base="xs:string">
@@ -924,12 +985,33 @@
                                              </xs:restriction>
                                           </xs:simpleType>
                                        </xs:element>
+                                       <xs:element name="W_D_R_NO" nillable="true" minOccurs="0">
+                                          <xs:simpleType>
+                                             <xs:restriction base="xs:string">
+                                                <xs:maxLength value="15"/>
+                                             </xs:restriction>
+                                          </xs:simpleType>
+                                       </xs:element>
                                        <xs:element name="EXPIRATION_DATE" type="xs:dateTime" nillable="true" minOccurs="0"/>
                                        <xs:element name="RECEIPT_DATE" type="xs:dateTime" nillable="true" minOccurs="0"/>
                                        <xs:element name="DEFAULT_LOCATION_NO" nillable="true" minOccurs="0">
                                           <xs:simpleType>
                                              <xs:restriction base="xs:string">
                                                 <xs:maxLength value="10"/>
+                                             </xs:restriction>
+                                          </xs:simpleType>
+                                       </xs:element>
+                                       <xs:element name="PRINT_APP_LABEL" nillable="true" minOccurs="0">
+                                          <xs:simpleType>
+                                             <xs:restriction base="xs:string">
+                                                <xs:maxLength value="20"/>
+                                             </xs:restriction>
+                                          </xs:simpleType>
+                                       </xs:element>
+                                       <xs:element name="PRINT_CONS_LABEL" nillable="true" minOccurs="0">
+                                          <xs:simpleType>
+                                             <xs:restriction base="xs:string">
+                                                <xs:maxLength value="20"/>
                                              </xs:restriction>
                                           </xs:simpleType>
                                        </xs:element>

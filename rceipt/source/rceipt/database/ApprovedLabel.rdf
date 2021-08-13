@@ -45,7 +45,9 @@ FUNCTION Test (
    no_of_copies2_            IN NUMBER,
    origin_pack_size3_        IN NUMBER,
    no_of_labels3_            IN NUMBER,
-   no_of_copies3_            IN NUMBER)
+   no_of_copies3_            IN NUMBER,
+   print_app_label_          IN NUMBER,
+   print_cons_label_         IN NUMBER)
    RETURN NUMBER;
 
 PROCEDURE Init;
@@ -89,6 +91,8 @@ BEGIN
    Database_SYS.Set_Table_Column(columns_, 'ORIGIN_PACK_SIZE3', 'NUMBER', 'Y');
    Database_SYS.Set_Table_Column(columns_, 'NO_OF_LABELS3', 'NUMBER', 'Y');
    Database_SYS.Set_Table_Column(columns_, 'NO_OF_COPIES3', 'NUMBER', 'Y');
+   Database_SYS.Set_Table_Column(columns_, 'PRINT_APP_LABEL', 'NUMBER', 'Y');
+   Database_SYS.Set_Table_Column(columns_, 'PRINT_CONS_LABEL', 'NUMBER', 'Y');
    Database_SYS.Set_Table_Column(columns_, 'PACK_QTY', 'NUMBER', 'Y');
    Database_SYS.Set_Table_Column(columns_, 'BATCH_NO', 'VARCHAR2(20)', 'Y');
    Database_SYS.Set_Table_Column(columns_, 'RECEIVER', 'VARCHAR2(30)', 'Y');
@@ -118,13 +122,13 @@ PROMPT Creating report view APPROVED_LABEL_REP
 
 CREATE OR REPLACE VIEW APPROVED_LABEL_REP AS
 SELECT RESULT_KEY, ROW_NO, PARENT_ROW_NO, ROWVERSION
-   ,RECEIPT_SEQUENCE,CONTRACT,PART_NO,CONFIGURATION_ID,LOCATION_NO,LOT_BATCH_NO,SERIAL_NO,E_C,W_D_R_NO,ACTIVITY_SEQ,HANDLING_UNIT_ID,ORIGIN_PACK_SIZE1,NO_OF_LABELS1,NO_OF_COPIES1,ORIGIN_PACK_SIZE2,NO_OF_LABELS2,NO_OF_COPIES2,ORIGIN_PACK_SIZE3,NO_OF_LABELS3,NO_OF_COPIES3,PACK_QTY,BATCH_NO,RECEIVER,OWNERSHIP,EXPIRATION_DATE,RECEIPT_DATE,DEFAULT_LOCATION_NO
+   ,RECEIPT_SEQUENCE,CONTRACT,PART_NO,CONFIGURATION_ID,LOCATION_NO,LOT_BATCH_NO,SERIAL_NO,E_C,W_D_R_NO,ACTIVITY_SEQ,HANDLING_UNIT_ID,ORIGIN_PACK_SIZE1,NO_OF_LABELS1,NO_OF_COPIES1,ORIGIN_PACK_SIZE2,NO_OF_LABELS2,NO_OF_COPIES2,ORIGIN_PACK_SIZE3,NO_OF_LABELS3,NO_OF_COPIES3,PRINT_APP_LABEL,PRINT_CONS_LABEL,PACK_QTY,BATCH_NO,RECEIVER,OWNERSHIP,EXPIRATION_DATE,RECEIPT_DATE,DEFAULT_LOCATION_NO
 FROM   APPROVED_LABEL_RPT t
 WHERE EXISTS (SELECT 1 FROM allowed_report a WHERE a.result_key = t.result_key)
 WITH   read only;
 
 COMMENT ON TABLE APPROVED_LABEL_REP
-   IS 'LU=ApprovedLabel^PROMPT=Approved Label^MODULE=RCEIPT^TITLETEXT=Approved Label^';
+   IS 'LU=ApprovedLabel^PROMPT=Approved Label/Concession Label^MODULE=RCEIPT^TITLETEXT=Approved Label/Concession Label^';
 
 COMMENT ON COLUMN APPROVED_LABEL_REP.result_key
    IS 'FLAGS=M----^DATATYPE=NUMBER^';
@@ -170,6 +174,10 @@ COMMENT ON COLUMN APPROVED_LABEL_REP.no_of_labels3
    IS 'FLAGS=A----^DATATYPE=NUMBER^TITLE=No Of Labels 3^QUERY=No Of Labels 3:^QFLAGS=OW---^';
 COMMENT ON COLUMN APPROVED_LABEL_REP.no_of_copies3
    IS 'FLAGS=A----^DATATYPE=NUMBER^TITLE=No Of Copies 3^QUERY=No Of Copies 3:^QFLAGS=OW---^';
+COMMENT ON COLUMN APPROVED_LABEL_REP.print_app_label
+   IS 'FLAGS=A----^DATATYPE=NUMBER^TITLE=Print App Label^QUERY=Print App Label:^QFLAGS=OW---^';
+COMMENT ON COLUMN APPROVED_LABEL_REP.print_cons_label
+   IS 'FLAGS=A----^DATATYPE=NUMBER^TITLE=Print Cons Label^QUERY=Print Cons Label:^QFLAGS=OW---^';
 COMMENT ON COLUMN APPROVED_LABEL_REP.pack_qty
    IS 'FLAGS=A----^DATATYPE=NUMBER^TITLE=Pack Qty^';
 COMMENT ON COLUMN APPROVED_LABEL_REP.batch_no
@@ -190,7 +198,7 @@ COMMENT ON COLUMN APPROVED_LABEL_REP.default_location_no
 -----------------------------------------------------------------------------
 
 BEGIN
-   Report_SYS.Define_Report_('APPROVED_LABEL_REP', 'RCEIPT', 'ApprovedLabel', 'Approved Label', 'APPROVED_LABEL_RPT', 'APPROVED_LABEL_RPI.Execute_Report', 0);
+   Report_SYS.Define_Report_('APPROVED_LABEL_REP', 'RCEIPT', 'ApprovedLabel', 'Approved Label/Concession Label', 'APPROVED_LABEL_RPT', 'APPROVED_LABEL_RPI.Execute_Report', 0);
    Report_SYS.Define_Report_Text_('APPROVED_LABEL_REP', 'APPROVED_LABEL', 'Sample');
    Report_SYS.Refresh_('APPROVED_LABEL_REP');
    Report_Lu_Definition_API.Clear_Custom_Fields_For_Report('APPROVED_LABEL_REP');
@@ -225,7 +233,9 @@ CREATE OR REPLACE PACKAGE BODY APPROVED_LABEL_RPI IS
       no_of_copies2             NUMBER,
       origin_pack_size3         NUMBER,
       no_of_labels3             NUMBER,
-      no_of_copies3             NUMBER);
+      no_of_copies3             NUMBER,
+      print_app_label           NUMBER,
+      print_cons_label          NUMBER);
 
    CURSOR get_detail IS
       SELECT 
@@ -236,9 +246,12 @@ CREATE OR REPLACE PACKAGE BODY APPROVED_LABEL_RPI IS
          NULL receiver,
          NULL ownership,
          NULL serial_no,
+         NULL w_d_r_no,
          NULL expiration_date,
          NULL receipt_date,
-         NULL default_location_no
+         NULL default_location_no,
+         NULL print_app_label,
+         NULL print_cons_label
       from dual;
 
 -----------------------------------------------------------------------------
@@ -275,6 +288,8 @@ BEGIN
       origin_pack_size3,
       no_of_labels3,
       no_of_copies3,
+      print_app_label,
+      print_cons_label,
       pack_qty,
       batch_no,
       receiver,
@@ -296,7 +311,8 @@ BEGIN
       nvl(rec_detail_.serial_no,
       binds$_.serial_no),
       binds$_.e_c,
-      binds$_.w_d_r_no,
+      nvl(rec_detail_.w_d_r_no,
+      binds$_.w_d_r_no),
       binds$_.activity_seq,
       binds$_.handling_unit_id,
       binds$_.origin_pack_size1,
@@ -308,6 +324,10 @@ BEGIN
       binds$_.origin_pack_size3,
       binds$_.no_of_labels3,
       binds$_.no_of_copies3,
+      nvl(rec_detail_.print_app_label,
+      binds$_.print_app_label),
+      nvl(rec_detail_.print_cons_label,
+      binds$_.print_cons_label),
       rec_detail_.pack_qty,
       rec_detail_.batch_no,
       rec_detail_.receiver,
@@ -373,7 +393,9 @@ BEGIN
    binds$_.origin_pack_size3    := Client_SYS.Attr_Value_To_Number(Client_SYS.Get_Item_Value('ORIGIN_PACK_SIZE3', parameter_attr_));
    binds$_.no_of_labels3        := Client_SYS.Attr_Value_To_Number(Client_SYS.Get_Item_Value('NO_OF_LABELS3', parameter_attr_));
    binds$_.no_of_copies3        := Client_SYS.Attr_Value_To_Number(Client_SYS.Get_Item_Value('NO_OF_COPIES3', parameter_attr_));
-   
+   binds$_.print_app_label      := Client_SYS.Attr_Value_To_Number(Client_SYS.Get_Item_Value('PRINT_APP_LABEL', parameter_attr_));
+   binds$_.print_cons_label     := Client_SYS.Attr_Value_To_Number(Client_SYS.Get_Item_Value('PRINT_CONS_LABEL', parameter_attr_));
+
    inv_qty_in_store_ := Receipt_Inv_Location_API.Get_Inv_Qty_In_Store(binds$_.receipt_sequence ,
                                                                       binds$_.contract,
                                                                       binds$_.part_no,
@@ -430,7 +452,7 @@ BEGIN
       Error_SYS.Appl_General(lu_name_, 'INCORRECTTOTALQTY: The total quantity for labels does not match with the real quantity in the receipt line.');   
    END IF; 
    
-   Xml_Record_Writer_SYS.Create_Report_Header(xml$_, 'APPROVED_LABEL_REP', 'Approved Label');
+   Xml_Record_Writer_SYS.Create_Report_Header(xml$_, 'APPROVED_LABEL_REP', 'Approved Label/Concession Label');
 
    Xml_Record_Writer_SYS.Start_Element(xml$_, 'ITEMS');
    
@@ -498,9 +520,12 @@ BEGIN
          Xml_Record_Writer_SYS.Add_Element(xml$_, 'RECEIVER', Fnd_Session_API.Get_Fnd_User);
          Xml_Record_Writer_SYS.Add_Element(xml$_, 'OWNERSHIP', part_ownership_);      
          Xml_Record_Writer_SYS.Add_Element(xml$_, 'SERIAL_NO', binds$_.serial_no); 
+         Xml_Record_Writer_SYS.Add_Element(xml$_, 'W_D_R_NO', binds$_.w_d_r_no);
          Xml_Record_Writer_SYS.Add_Element(xml$_, 'EXPIRATION_DATE', expiration_date_);
          Xml_Record_Writer_SYS.Add_Element(xml$_, 'RECEIPT_DATE', SYSDATE);
          Xml_Record_Writer_SYS.Add_Element(xml$_, 'DEFAULT_LOCATION_NO', default_location_no_);
+         Xml_Record_Writer_SYS.Add_Element(xml$_, 'PRINT_APP_LABEL', binds$_.print_app_label);
+         Xml_Record_Writer_SYS.Add_Element(xml$_, 'PRINT_CONS_LABEL', binds$_.print_cons_label);
          Xml_Record_Writer_SYS.End_Element(xml$_, 'DETAIL');
          Add_Result_Row___(result_key$_,
                            binds$_ => binds$_,
@@ -531,9 +556,12 @@ BEGIN
          Xml_Record_Writer_SYS.Add_Element(xml$_, 'RECEIVER', Fnd_Session_API.Get_Fnd_User);
          Xml_Record_Writer_SYS.Add_Element(xml$_, 'OWNERSHIP', part_ownership_);      
          Xml_Record_Writer_SYS.Add_Element(xml$_, 'SERIAL_NO', binds$_.serial_no); 
+         Xml_Record_Writer_SYS.Add_Element(xml$_, 'W_D_R_NO', binds$_.w_d_r_no);
          Xml_Record_Writer_SYS.Add_Element(xml$_, 'EXPIRATION_DATE', expiration_date_);
          Xml_Record_Writer_SYS.Add_Element(xml$_, 'RECEIPT_DATE', Receipt_Info_API.Get_Arrival_Date(binds$_.receipt_sequence));
          Xml_Record_Writer_SYS.Add_Element(xml$_, 'DEFAULT_LOCATION_NO', default_location_no_);
+         Xml_Record_Writer_SYS.Add_Element(xml$_, 'PRINT_APP_LABEL', binds$_.print_app_label);
+         Xml_Record_Writer_SYS.Add_Element(xml$_, 'PRINT_CONS_LABEL', binds$_.print_cons_label);
          Xml_Record_Writer_SYS.End_Element(xml$_, 'DETAIL');
          Add_Result_Row___(result_key$_,
                            binds$_ => binds$_,
@@ -564,9 +592,12 @@ BEGIN
          Xml_Record_Writer_SYS.Add_Element(xml$_, 'RECEIVER', Fnd_Session_API.Get_Fnd_User);
          Xml_Record_Writer_SYS.Add_Element(xml$_, 'OWNERSHIP', part_ownership_);      
          Xml_Record_Writer_SYS.Add_Element(xml$_, 'SERIAL_NO', binds$_.serial_no); 
+         Xml_Record_Writer_SYS.Add_Element(xml$_, 'W_D_R_NO', binds$_.w_d_r_no);
          Xml_Record_Writer_SYS.Add_Element(xml$_, 'EXPIRATION_DATE', expiration_date_);
          Xml_Record_Writer_SYS.Add_Element(xml$_, 'RECEIPT_DATE', Receipt_Info_API.Get_Arrival_Date(binds$_.receipt_sequence));
          Xml_Record_Writer_SYS.Add_Element(xml$_, 'DEFAULT_LOCATION_NO', default_location_no_);
+         Xml_Record_Writer_SYS.Add_Element(xml$_, 'PRINT_APP_LABEL', binds$_.print_app_label);
+         Xml_Record_Writer_SYS.Add_Element(xml$_, 'PRINT_CONS_LABEL', binds$_.print_cons_label);
          Xml_Record_Writer_SYS.End_Element(xml$_, 'DETAIL');
          Add_Result_Row___(result_key$_,
                            binds$_ => binds$_,
@@ -618,7 +649,9 @@ FUNCTION Test (
    no_of_copies2_            IN NUMBER,
    origin_pack_size3_        IN NUMBER,
    no_of_labels3_            IN NUMBER,
-   no_of_copies3_            IN NUMBER)
+   no_of_copies3_            IN NUMBER,
+   print_app_label_          IN NUMBER,
+   print_cons_label_         IN NUMBER)
 RETURN NUMBER
 IS
    result_key_     NUMBER;
@@ -687,6 +720,12 @@ BEGIN
    END IF;
    IF (no_of_copies3_ IS NOT NULL) THEN
       Client_SYS.Add_To_Attr('NO_OF_COPIES3', no_of_copies3_, parameter_attr_);
+   END IF;
+   IF (print_app_label_ IS NOT NULL) THEN
+      Client_SYS.Add_To_Attr('PRINT_APP_LABEL', print_app_label_, parameter_attr_);
+   END IF;
+   IF (print_cons_label_ IS NOT NULL) THEN
+      Client_SYS.Add_To_Attr('PRINT_CONS_LABEL', print_cons_label_, parameter_attr_);
    END IF;
    Execute_Report(report_attr_, parameter_attr_);
    RETURN result_key_;
