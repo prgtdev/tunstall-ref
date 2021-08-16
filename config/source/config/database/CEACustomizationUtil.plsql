@@ -1479,7 +1479,7 @@ BEGIN
 END Check_Kanban_Reservation_Date; 
 -- C0654 EntChamuA (END)
 
---C0446 EntChamuA (START)
+ --C0446 EntChamuA (START)
 PROCEDURE Create_Equipment_Object__(
    order_no_ IN VARCHAR2) 
 IS
@@ -1500,28 +1500,29 @@ IS
              cf$_object_id,
              buy_qty_due,
              objid
-        FROM customer_order_line_cfv a
-       WHERE order_no = order_no_
-         AND state IN ('Delivered', 'Invoiced/Closed', 'Partially Delivered');
+      FROM customer_order_line_cfv a
+      WHERE order_no = order_no_
+      AND state IN ('Delivered', 'Invoiced/Closed', 'Partially Delivered');
    
    CURSOR check_sales_part(catalog_ IN VARCHAR2) IS
       SELECT 1
-        FROM sales_part_cfv
-       WHERE catalog_no = catalog_
-         AND contract = '2012'
-         AND cf$_serviceable_db = 'TRUE';
+      FROM sales_part_cfv
+      WHERE catalog_no = catalog_
+      AND contract = '2012'
+      AND cf$_serviceable_db = 'TRUE';
    
    --Check serialised
    CURSOR check_serialized(catalog_ IN VARCHAR2) IS
       SELECT 1 
-        FROM part_serial_catalog 
-       WHERE part_no = catalog_;
+      FROM part_serial_catalog 
+      WHERE part_no = catalog_;
 BEGIN
    
    FOR rec_ IN get_co_line LOOP
       -- To check sales part 
       OPEN check_sales_part(rec_.catalog_no);
-      FETCH check_sales_part INTO temps_;
+      FETCH check_sales_part
+         INTO temps_;
       CLOSE check_sales_part;
       
       object_id_ := SUBSTR(rec_.CF$_OBJECT_ID, INSTR(rec_.CF$_OBJECT_ID, '^') + 1, length(rec_.CF$_OBJECT_ID));
@@ -1541,7 +1542,8 @@ BEGIN
                   rec_.cust_warranty_id,
                   object_id_,
                   rec_.objid,
-                  rec_.real_ship_date);
+                  rec_.real_ship_date,
+                  rec_.buy_qty_due);
                temps_ := 0;
             ELSE
                Create_Functional_Object_(rec_.catalog_no,
@@ -1701,15 +1703,16 @@ BEGIN
 END Create_Functional_Object_;
 
 PROCEDURE Create_Serial_Object__(
-   catalog_no_     IN VARCHAR2,
-   order_no_       IN VARCHAR2,
-   line_no_        IN VARCHAR2,
-   line_item_no_   IN VARCHAR2,
-   rel_no_         IN VARCHAR2,
-   warranty_id_    IN VARCHAR2,
-   object_id_      IN VARCHAR2,
-   col_objid_      IN VARCHAR2,
-   real_ship_date_ IN DATE) 
+   catalog_no_      IN VARCHAR2,
+   order_no_        IN VARCHAR2,
+   line_no_         IN VARCHAR2,
+   line_item_no_    IN VARCHAR2,
+   rel_no_          IN VARCHAR2,
+   warranty_id_     IN VARCHAR2,
+   object_id_       IN VARCHAR2,
+   col_objid_       IN VARCHAR2,
+   real_ship_date_  IN DATE,
+   buy_qty_due_     IN NUMBER) 
 IS  
    max_value_    NUMBER;
    unit_         VARCHAR2(10);
@@ -1729,6 +1732,7 @@ IS
    sup_mch_code_ VARCHAR2(2000);
    obj_created_  VARCHAR2(2000);
    concat_obj_   VARCHAR2(3200):= NULL;
+   serial_obj_   VARCHAR2(3200):= NULL;
    
    --To get serial objects qty per CO line
    CURSOR get_serial_objects_col(catalog_   IN VARCHAR2,
@@ -1790,67 +1794,77 @@ BEGIN
       --create serial object
       FOR obj IN get_serial_objects_col(catalog_no_, order_no_, line_no_,  line_item_no_, rel_no_) LOOP
          
-         --For each object get warranty details
-         OPEN get_serial_warranty_dets(catalog_no_, warranty_id_, obj.serial_no);
-         FETCH get_serial_warranty_dets INTO max_value_, unit_;
-         CLOSE get_serial_warranty_dets;
-         
-         IF (unit_ = 'Year') THEN
-            max_value_ := max_value_ * 12;
-         END IF;
-         
-         values_ := max_value_ || 'M';
-         
-         IF (values_ IS NOT NULL) THEN
-            OPEN get_objkey(values_);
-            FETCH get_objkey INTO warr_objkey_;
-            CLOSE get_objkey;
-         END IF;
-         
-         sstep1_ := Equipment_Serial_API.Check_Serial_Exist(catalog_no_,obj.serial_no);
-         
-         sstep2_ := Maintenance_Site_Utility_API.Is_User_Allowed_Site(contract_);
-         
-         sstep3_ := Part_Serial_Catalog_API.Get_Objstate(catalog_no_,obj.serial_no);
-         
-         sstep4_ := Part_Serial_Catalog_API.Delivered_To_Internal_Customer(catalog_no_,obj.serial_no);
+         serial_obj_ := catalog_no_ ||'-'||obj.serial_no;
 
-         OPEN get_co_line_obj(order_no_, catalog_no_);
-         FETCH get_co_line_obj INTO obj_created_;
-         IF(obj_created_ IS null)THEN
-            --CREATE NEW SERIAL OBJECTS
-            Equipment_Serial_API.Create_Maintenance_Aware(catalog_no_, obj.serial_no, contract_, NULL, 'FALSE');
-            Equipment_Serial_API.Get_Obj_Info_By_Part(site_, mch_code_, catalog_no_, obj.serial_no);
-            Equipment_Object_API.Move_From_Invent_To_Facility(contract_, object_id_, catalog_no_, obj.serial_no, mch_code_);
-            
-            OPEN modify_serial_obj_date(mch_code_, obj.serial_no);
-            FETCH modify_serial_obj_date INTO objid_, objversion_;
-            CLOSE modify_serial_obj_date;
-            
-            Client_Sys.Add_To_Attr('PRODUCTION_DATE', real_ship_date_, attr_);
-            Equipment_Serial_API.Modify__(info_,objid_,objversion_, attr_,'DO');
-            
-            Client_Sys.Clear_Attr(attr_);
-            
-            Client_Sys.Add_To_Attr('CF$_SERVICE_WARRANTY', warr_objkey_, attr_);
-            Client_Sys.Add_To_Attr('CF$_CUSTOMER_ORDER_NO', order_no_, attr_);
-            Equipment_Serial_CFP.Cf_Modify__(info_, objid_, attr_, ' ', 'DO');
-            
-            concat_obj_ := mch_code_||';'||concat_obj_;
-         ELSE
-            FOR rec_modify_ IN get_serial_object(order_no_, catalog_no_)LOOP
-               sup_mch_code_:= Equipment_Serial_API.Get_Sup_Mch_Code(contract_, rec_modify_.mch_code);
-               IF(sup_mch_code_ != object_id_ )THEN  
-                  Client_SYS.Clear_Attr(attr_);
-                  Client_Sys.Add_To_Attr('SUP_MCH_CODE', object_id_, attr_);
-                  Equipment_Serial_API.Modify__(info_, rec_modify_.objid, rec_modify_.objversion, attr_, 'DO');
-               END IF;
-            END LOOP;
+         IF NOT EQUIPMENT_SERIAL_API.Exists(contract_, serial_obj_) THEN
+
+            --For each object get warranty details
+            OPEN get_serial_warranty_dets(catalog_no_, warranty_id_, obj.serial_no);
+            FETCH get_serial_warranty_dets INTO max_value_, unit_;
+            CLOSE get_serial_warranty_dets;
+
+            IF (unit_ = 'Year') THEN
+               max_value_ := max_value_ * 12;
+            END IF;
+
+            values_ := max_value_ || 'M';
+
+            IF (values_ IS NOT NULL) THEN
+               OPEN get_objkey(values_);
+               FETCH get_objkey INTO warr_objkey_;
+               CLOSE get_objkey;
+            END IF;
+
+            sstep1_ := Equipment_Serial_API.Check_Serial_Exist(catalog_no_,obj.serial_no);
+
+            sstep2_ := Maintenance_Site_Utility_API.Is_User_Allowed_Site(contract_);
+
+            sstep3_ := Part_Serial_Catalog_API.Get_Objstate(catalog_no_,obj.serial_no);
+
+            sstep4_ := Part_Serial_Catalog_API.Delivered_To_Internal_Customer(catalog_no_,obj.serial_no);
+
+            OPEN get_co_line_obj(order_no_, catalog_no_);
+            FETCH get_co_line_obj INTO obj_created_;
+            IF(obj_created_ IS NULL OR (REGEXP_COUNT(obj_created_, ';') < buy_qty_due_))THEN
+              
+              --CREATE NEW SERIAL OBJECTS
+               Equipment_Serial_API.Create_Maintenance_Aware(catalog_no_, obj.serial_no, contract_, NULL, 'FALSE');
+               Equipment_Serial_API.Get_Obj_Info_By_Part(site_, mch_code_, catalog_no_, obj.serial_no);
+
+               Equipment_Object_API.Move_From_Invent_To_Facility(contract_, object_id_, catalog_no_, obj.serial_no, mch_code_);
+
+               OPEN modify_serial_obj_date(mch_code_, obj.serial_no);
+               FETCH modify_serial_obj_date INTO objid_, objversion_;
+               CLOSE modify_serial_obj_date;
+
+               Client_Sys.Add_To_Attr('PRODUCTION_DATE', real_ship_date_, attr_);
+               Equipment_Serial_API.Modify__(info_,objid_,objversion_, attr_,'DO');
+
+               Client_Sys.Clear_Attr(attr_);
+               Client_Sys.Add_To_Attr('CF$_SERVICE_WARRANTY', warr_objkey_, attr_);
+               Client_Sys.Add_To_Attr('CF$_CUSTOMER_ORDER_NO', order_no_, attr_);
+               Equipment_Serial_CFP.Cf_Modify__(info_, objid_, attr_, ' ', 'DO');
+
+               concat_obj_ := mch_code_||';'||concat_obj_;
+            ELSE
+               FOR rec_modify_ IN get_serial_object(order_no_, catalog_no_)LOOP
+                  sup_mch_code_:= Equipment_Serial_API.Get_Sup_Mch_Code(contract_, rec_modify_.mch_code);
+                  IF(sup_mch_code_ != object_id_ )THEN  
+                     Client_SYS.Clear_Attr(attr_);
+                     Client_Sys.Add_To_Attr('SUP_MCH_CODE', object_id_, attr_);
+                     Equipment_Serial_API.Modify__(info_, rec_modify_.objid, rec_modify_.objversion, attr_, 'DO');
+                  END IF;
+               END LOOP;
+            END IF;
+            CLOSE get_co_line_obj;
          END IF;
-         CLOSE get_co_line_obj;
       END LOOP;
       IF(obj_created_ IS null) THEN
          Client_Sys.Clear_Attr(attr_);
+         Client_Sys.Add_To_Attr('CF$_OBJECT_CREATED', concat_obj_, attr_);
+         Customer_Order_Line_CFP.Cf_Modify__(info_, col_objid_, attr_, ' ', 'DO');
+      ELSE
+         concat_obj_ := concat_obj_ ||';'||obj_created_;
          Client_Sys.Add_To_Attr('CF$_OBJECT_CREATED', concat_obj_, attr_);
          Customer_Order_Line_CFP.Cf_Modify__(info_, col_objid_, attr_, ' ', 'DO');
       END IF;
@@ -2936,7 +2950,6 @@ IS
    status_ VARCHAR2(100);
    inv_state_ VARCHAR2(100);
    inv_due_ DATE;
-   current_bucket_ NUMBER;
    credit_note_ NUMBER;
    amount_due_ NUMBER;
    temp_ VARCHAR2(5):='FALSE';
@@ -2952,7 +2965,7 @@ IS
 
    CURSOR get_inv_header_notes (company_ VARCHAR2, identity_ VARCHAR2, invoice_id_ NUMBER )IS
       SELECT * 
-        FROM (SELECT follow_up_date, Credit_Note_Status_API.Get_Note_Status_Description(company,note_status_id)
+        FROM (SELECT follow_up_date
                 FROM invoice_header_notes
                WHERE company =company_
                  AND identity = identity_
@@ -2961,7 +2974,19 @@ IS
             ORDER BY follow_up_date DESC, note_id DESC 
             )
         WHERE rownum  =1;
-
+   
+   CURSOR get_latest_header_note (company_ VARCHAR2, identity_ VARCHAR2, invoice_id_ NUMBER )
+   IS
+      SELECT * FROM (
+      SELECT Credit_Note_Status_API.Get_Note_Status_Description(company,note_status_id) status
+      from invoice_header_notes
+      WHERE company = company_
+        AND identity = identity_
+        AND party_type = 'Customer'
+        AND invoice_id = invoice_id_
+      ORDER BY note_id DESC)
+      WHERE rownum = 1;
+      
    CURSOR get_inv_info(company_ VARCHAR2, identity_ VARCHAR2, invoice_id_ NUMBER )IS
       SELECT inv_state, due_date
         FROM invoice_ledger_item_cu_qry
@@ -2993,8 +3018,13 @@ BEGIN
    FOR rec_ IN get_inv_headers(identity_,credit_analyst_ , company_ ) LOOP
        OPEN get_inv_header_notes(rec_.company, rec_.identity,rec_.invoice_id);
       FETCH get_inv_header_notes 
-       INTO follow_up_date_, status_;
+       INTO follow_up_date_;
       CLOSE get_inv_header_notes;
+      
+        OPEN get_latest_header_note(rec_.company, rec_.identity,rec_.invoice_id);
+      FETCH get_latest_header_note 
+       INTO status_;
+      CLOSE get_latest_header_note;
 
        OPEN  get_inv_info(rec_.company, rec_.identity,rec_.invoice_id);
       FETCH  get_inv_info 
@@ -3002,7 +3032,8 @@ BEGIN
       CLOSE get_inv_info;
 
       IF(follow_up_date_ IS NOT NULL AND follow_up_date_<= SYSDATE AND 
-         (inv_state_ NOT IN ('Preliminary', 'Cancelled', 'PaidPosted')AND inv_due_< SYSDATE) )THEN 
+         (inv_state_ NOT IN ('Preliminary', 'Cancelled', 'PaidPosted')AND inv_due_< SYSDATE) 
+           AND status_ NOT IN ('Complete','Escalated to Credit Manager','Escalated to Finance Controller'))THEN 
          temp_ := 'TRUE';
          EXIT;
       END IF;      
@@ -3020,14 +3051,14 @@ BEGIN
          EXIT;
       END IF; 
       
-      OPEN  get_aging_bucket(rec_.company, rec_.invoice_id);
+      /*OPEN  get_aging_bucket(rec_.company, rec_.invoice_id);
       FETCH  get_aging_bucket INTO  current_bucket_;
       CLOSE get_aging_bucket;
       
       IF(status_ NOT IN ('Complete','Escalated to Credit Manager','Escalated to Finance Controller') AND current_bucket_ IS NOT NULL)THEN
          temp_ := 'TRUE';
          EXIT;
-      END IF;
+      END IF;*/
    END LOOP;
    RETURN temp_;
 END Check_Inv_Header_CA;
@@ -3447,7 +3478,42 @@ BEGIN
          END IF;
          
          RETURN out_;
-   END  Check_Note_Latest; 
+   END  Check_Note_Latest;
+      
+   FUNCTION Check_Cr_Note_Complete(company_ IN VARCHAR2,
+                                       identity_ IN VARCHAR2, 
+                                       invoice_id_ IN NUMBER,
+                                       note_id_ IN NUMBER)RETURN VARCHAR2
+      IS
+         dummy_ NUMBER;
+         out_ VARCHAR2(5) :='FALSE';
+         
+         CURSOR get_complete_note IS
+         SELECT max(note_id)
+           FROM invoice_header_notes
+          WHERE company = company_ 
+            AND identity = identity_
+            AND invoice_id = invoice_id_
+            AND party_type = 'Customer' 
+            AND Credit_Note_Status_API.Get_Note_Status_Description(company,note_status_id) = 'Complete';
+            
+      BEGIN
+         OPEN get_complete_note;
+         FETCH get_complete_note INTO dummy_;
+         IF(get_complete_note%FOUND)THEN
+            IF(note_id_ <= dummy_)THEN 
+               out_ := 'TRUE';
+            ELSE
+               out_ :='FALSE';
+            END IF;
+            
+         ELSE
+            CLOSE get_complete_note;
+            out_ :='FALSE';
+         END IF;
+         
+         RETURN out_;
+   END Check_Cr_Note_Complete;
 --C0367 EntChathI (END)
 
 -- C526 EntPragG (START)
@@ -3562,7 +3628,7 @@ BEGIN
     'SELECT LISTAGG(fee_code, '', '') WITHIN GROUP(ORDER BY fee_code) fee_code
      FROM (SELECT fee_code
              FROM tax_code_restricted
-            WHERE fee_code IN
+            WHERE ((fee_code IN
                   (SELECT a.cf$_Tax_Code
                      FROM sales_part_tax_code_clv a
                     WHERE a.cf$_sales_part_no = :1
@@ -3571,13 +3637,19 @@ BEGIN
                   (SELECT b.cf$_tax_code
                      FROM cust_applicable_tax_code_clv b
                     WHERE b.cf$_company = :3
-                      AND b.cf$_customer = :4)
+                      AND b.cf$_customer = :4))
+              OR fee_code IN
+                  (SELECT s.fee_code
+                   FROM   statutory_fee_cfv s
+                   WHERE  s.cf$_c_always_allowed_db = ''TRUE''
+                   AND    s.company = :5
+                   AND    TRUNC(sysdate) BETWEEN s.valid_from AND s.valid_until
+                  ))        
               AND COMPANY = :5)';
-   IF Database_SYS.View_Exist('SALES_PART_TAX_CODE_CLV') AND Database_SYS.View_Exist('CUST_APPLICABLE_TAX_CODE_CLV') THEN
-      @ApproveDynamicStatement(2021-08-05,EntPragG)
+   IF Database_SYS.View_Exist('SALES_PART_TAX_CODE_CLV') AND Database_SYS.View_Exist('CUST_APPLICABLE_TAX_CODE_CLV') AND Database_SYS.View_Exist('STATUTORY_FEE_CFV') THEN
       EXECUTE IMMEDIATE stmt_    
          INTO allowed_tax_codes_
-        USING catalog_no_,contract_,company_,customer_,company_;
+        USING catalog_no_,contract_,company_,customer_,company_,company_;
    END IF;          
    RETURN allowed_tax_codes_;
 EXCEPTION
@@ -4150,4 +4222,287 @@ BEGIN
    
 END Create_NCR_And_CAPA__;
 -- C0618 EntChamuA (END)
+
+-- C0678 EntDarshP (FINISH)
+PROCEDURE Approve_Incoming_Docs(
+  receiver_person_ IN VARCHAR2,
+  date_logged_     IN VARCHAR2,
+  doc_class_       IN VARCHAR2,
+  doc_no_          IN VARCHAR2,
+  doc_rev_         IN VARCHAR2,
+  doc_sheet_       IN VARCHAR2,
+  free_text_       IN VARCHAR2)
+IS
+  objid_      VARCHAR2(100);
+  objversion_ VARCHAR2(100);
+  attr_       VARCHAR2(3200);
+  info_       VARCHAR2(3200);
+  date_       TIMESTAMP;
+  sql_stmt_   VARCHAR2(300);
+
+BEGIN
+  IF(LENGTH(free_text_) > 2) THEN
+     SELECT to_timestamp(date_logged_, 'yyyy-MM-dd"T"hh24:mi:ss"Z"') INTO date_ FROM DUAL ;
+     Doc_Dist_List_History_Api.Get_Id_Version_By_Keys(doc_class_, doc_no_, doc_sheet_, doc_rev_, objid_, objversion_, receiver_person_, date_ );
+     Doc_Dist_List_History_Api.Approve__( info_ ,  objid_ , objversion_ , attr_ , 'DO' );
+     IF(database_SYS.View_Exist('DOC_DIST_LIST_HISTORY_CFV')) THEN
+        sql_stmt_ := 'UPDATE DOC_DIST_LIST_HISTORY_CFT SET cf$_signed_date = SYSDATE WHERE rowkey = (SELECT rowkey FROM DOC_DIST_LIST_HISTORY_TAB t where t.rowid = :1)';
+        EXECUTE IMMEDIATE sql_stmt_ USING objid_;  
+     END IF;
+  ELSE
+    Error_Sys.Record_General('Error', 'Please enter your name and then click the Sign Document button');
+  END IF;
+END Approve_Incoming_Docs;
+-- C0678 EntDarshP (FINISH)
+
+-- C200 EntNadeeL (START)
+PROCEDURE Create_Mps_Build_ IS
+   sql_stmt          VARCHAR2(32000);
+   pivot_clause      CLOB;
+   pivot_clause_date CLOB;
+BEGIN
+   
+   sql_stmt := 'CREATE OR REPLACE VIEW MPS_BUILD_TEMP_QRY AS
+               SELECT ''123456789'' AS objversion, ''ITH'' AS table_type,h.part_no,h.contract,h.transaction_code,h.date_created,SUM(h.quantity) AS qty,0 AS net_supply
+               FROM  inventory_transaction_hist2 h 
+               GROUP BY h.part_no,h.contract,h.transaction_code,h.date_created
+
+               UNION ALL
+               SELECT ''123456789'' AS objversion,''PSD'' AS table_type,p.part_no,p.contract,'''' AS transaction_code,p.date_required,SUM(p.qty_demand),0 AS net_supply
+               FROM pegged_supply_demand_ext p 
+               GROUP BY p.part_no,p.contract,p.date_required
+
+               UNION ALL               
+               SELECT ''123456789'' AS objversion,''SO'' AS table_type,s.part_no,s.contract,s.state AS transaction_code,s.revised_due_date,SUM(s.qty_complete) ,SUM(s.remaining_net_supply_qty)
+               FROM shop_ord s
+               GROUP BY s.part_no,s.contract,s.state,s.revised_due_date';  
+
+   Transaction_SYS.Set_Status_Info(sql_stmt, 'INFO');            
+   EXECUTE IMMEDIATE sql_stmt; 
+   
+   END Create_Mps_Build_;
+-- C200 EntNadeeL (END)
+
+--240521 ISURUG Calculate Shift Admin Time (START)
+FUNCTION Calculate_Shift_Admin_Time (emp_name_ IN VARCHAR2) RETURN NUMBER
+IS
+   employee_name_            VARCHAR2(2000) := '%' || emp_name_ || '%';
+   survey_daily_vec_check_   NUMBER;
+   survey_monthly_vec_check_ NUMBER;
+   survey_non_wo_mileage_    NUMBER;
+   survey_non_wo_time_       NUMBER;
+   shift_admin_time_         NUMBER;
+   
+   CURSOR daily_vec_check IS
+      SELECT NVL(SUM(v.ANSWER) / 60, 0)
+      FROM JT_TASK_SURVEY_ANSWERS v 
+      WHERE v.survey_id = 'DAILY_VEC_CHECK' 
+        AND SURVEY_QUESTION_API.Get_Question_No(v.survey_id, v.question_id) = 5
+        AND COMPANY_EMP_API.Get_Name(v.company_id, v.emp_no) LIKE NVL(employee_name_,'%');
+        
+   CURSOR monthly_vec_check IS
+      SELECT NVL(SUM(v.ANSWER ) / 60, 0)
+      FROM JT_TASK_SURVEY_ANSWERS v 
+      WHERE v.SURVEY_ID = 'MON_VEC_CHECK' 
+        AND SURVEY_QUESTION_API.Get_Question_No(v.survey_id, v.question_id) = 14
+        AND COMPANY_EMP_API.Get_Name(v.company_id, v.emp_no) LIKE NVL(employee_name_,'%');
+        
+   CURSOR non_wo_mileage IS
+      SELECT NVL(SUM((t2.Answer2 - t1.Answer1) * 24), 0)
+      FROM (
+         SELECT TO_DATE(v.ANSWER, 'YYYY-MM-DD-HH24.MI.SS') Answer1
+         FROM JT_TASK_SURVEY_ANSWERS v 
+         WHERE v.SURVEY_ID = 'NON WO MILEAGE' 
+           AND SURVEY_QUESTION_API.Get_Question_No(v.survey_id, v.question_id) = 2
+           AND COMPANY_EMP_API.Get_Name(v.company_id, v.emp_no) LIKE NVL(employee_name_,'%')
+      ) t1,
+      (
+         SELECT TO_DATE(v.ANSWER, 'YYYY-MM-DD-HH24.MI.SS') Answer2
+         FROM JT_TASK_SURVEY_ANSWERS v 
+         WHERE v.SURVEY_ID = 'NON WO MILEAGE' 
+           AND SURVEY_QUESTION_API.Get_Question_No(v.survey_id, v.question_id) = 4
+           AND COMPANY_EMP_API.Get_Name(v.company_id, v.emp_no) LIKE NVL(employee_name_,'%')
+      ) t2;
+      
+   CURSOR non_wo_time IS
+      SELECT NVL(SUM((t2.Answer2 - t1.Answer1) * 24), 0)
+      FROM (
+         SELECT TO_DATE(v.ANSWER, 'YYYY-MM-DD-HH24.MI.SS') Answer1 
+         FROM JT_TASK_SURVEY_ANSWERS v 
+         WHERE v.SURVEY_ID = 'NON WO TIME' 
+           AND SURVEY_QUESTION_API.Get_Question_No(v.survey_id, v.question_id) = 2
+           AND COMPANY_EMP_API.Get_Name(v.company_id, v.emp_no) LIKE NVL(employee_name_,'%')
+      ) t1,
+      (
+         SELECT TO_DATE(v.ANSWER, 'YYYY-MM-DD-HH24.MI.SS') Answer2 
+         FROM JT_TASK_SURVEY_ANSWERS v 
+         WHERE v.SURVEY_ID = 'NON WO TIME' 
+           AND SURVEY_QUESTION_API.Get_Question_No(v.survey_id, v.question_id) = 3
+           AND COMPANY_EMP_API.Get_Name(v.company_id, v.emp_no) LIKE NVL(employee_name_,'%')
+      ) t2;
+BEGIN
+   OPEN daily_vec_check;
+   FETCH daily_vec_check INTO survey_daily_vec_check_;
+   CLOSE daily_vec_check; 
+   
+   OPEN monthly_vec_check;
+   FETCH monthly_vec_check INTO survey_monthly_vec_check_;
+   CLOSE monthly_vec_check; 
+   
+   OPEN non_wo_mileage;
+   FETCH non_wo_mileage INTO survey_non_wo_mileage_;
+   CLOSE non_wo_mileage; 
+   
+   OPEN non_wo_time;
+   FETCH non_wo_time INTO survey_non_wo_time_;
+   CLOSE non_wo_time; 
+
+   shift_admin_time_ := survey_daily_vec_check_ + survey_monthly_vec_check_ + survey_non_wo_mileage_ + survey_non_wo_time_;
+
+   RETURN shift_admin_time_;
+END Calculate_Shift_Admin_Time;
+--240521 ISURUG Calculate Shift Admin Time (END)
+
+--240521 ISURUG Calculate Idle Time (START)
+FUNCTION Calculate_Idle_Time (emp_name_ IN VARCHAR2, sdate_ IN VARCHAR2, edate_ IN VARCHAR2) RETURN NUMBER
+IS
+   employee_name_         VARCHAR2(3000) := '%'||emp_name_||'%';
+   start_date_            VARCHAR2(2000) := sdate_;
+   stop_date_             VARCHAR2(2000) := edate_;
+   answer_work_hours_     NUMBER;
+   answer_travel_hours_   NUMBER;
+   shift_admin_time_      NUMBER;
+   answer_shift_end_time_ NUMBER;
+   idle_time_             NUMBER;
+
+   --Get work hours
+   CURSOR work_hours(ename_ VARCHAR2, st_date_ VARCHAR2, end_date_ VARCHAR2) IS
+         SELECT NVL(SUM(v.work_hours), 0) work_hours
+         FROM JT_TASK_CLOCKING_UIV v
+         WHERE v.clocking_category = 'Work'
+           AND v.employee_name LIKE NVL(ename_,'%')
+           AND((TRUNC(v.start_time) >= TO_DATE(st_date_, 'DD/MM/YYYY') AND TRUNC(v.stop_time) <= TO_DATE(end_date_, 'DD/MM/YYYY'))
+              OR (TRUNC(v.start_time) = TO_DATE(st_date_, 'DD/MM/YYYY'))
+              OR (TRUNC(v.stop_time) = TO_DATE(end_date_, 'DD/MM/YYYY'))
+              OR (TO_CHAR(v.start_time, 'DD/MM/YYYY') LIKE NVL(st_date_,'%') AND TO_CHAR(v.stop_time, 'DD/MM/YYYY') LIKE NVL(end_date_,'%')));
+
+   --Get travel hours    
+   CURSOR travel_hours(ename_ VARCHAR2, st_date_ VARCHAR2, end_date_ VARCHAR2) IS
+         SELECT NVL(SUM(v.work_hours), 0) travel_hours
+         FROM JT_TASK_CLOCKING_UIV v
+         WHERE v.clocking_category = 'Travel'
+           AND v.employee_name LIKE NVL(ename_,'%')
+           AND((TRUNC(v.start_time) >= TO_DATE(st_date_, 'DD/MM/YYYY') AND TRUNC(v.stop_time) <= TO_DATE(end_date_, 'DD/MM/YYYY'))
+              OR (TRUNC(v.start_time) = TO_DATE(st_date_, 'DD/MM/YYYY'))
+              OR (TRUNC(v.stop_time) = TO_DATE(end_date_, 'DD/MM/YYYY'))
+              OR (TO_CHAR(v.start_time, 'DD/MM/YYYY') LIKE NVL(st_date_,'%') AND TO_CHAR(v.stop_time, 'DD/MM/YYYY') LIKE NVL(end_date_,'%')));
+
+   CURSOR shift_end_time_(ename_ VARCHAR2) IS
+      SELECT NVL((et.end_time - st1.start_time) * 24, 0) + NVL((et.end_time - st2.start_time) * 24, 0)
+      FROM (
+         SELECT v.date_created end_time
+         FROM (
+            SELECT v.*
+            FROM JT_TASK_SURVEY_ANSWERS v
+            ORDER BY v.answer_set DESC, v.emp_no ASC, v.date_created ASC, v.answer_id ASC
+         ) v 
+         WHERE v.SURVEY_ID = 'END_MILEAGE'
+           AND COMPANY_EMP_API.Get_Name(v.company_id, v.emp_no) LIKE NVL(ename_,'%') 
+           AND rownum = 1
+      ) et,
+      (
+         SELECT v1.date_created start_time
+         FROM (
+            SELECT v.*
+            FROM JT_TASK_SURVEY_ANSWERS v
+            ORDER BY v.answer_set DESC, v.emp_no ASC, v.date_created ASC, v.answer_id ASC
+         ) v1
+         WHERE v1.SURVEY_ID = 'DAILY_VEC_CHECK'
+           AND COMPANY_EMP_API.Get_Name(v1.company_id, v1.emp_no) LIKE NVL(ename_,'%') 
+           AND rownum = 1
+      ) st1,
+      (
+         SELECT v2.date_created start_time
+         FROM (
+            SELECT v.*
+            FROM JT_TASK_SURVEY_ANSWERS v
+            ORDER BY v.answer_set DESC, v.emp_no ASC, v.date_created ASC, v.answer_id ASC
+         ) v2 
+         WHERE v2.SURVEY_ID = 'MON_VEC_CHECK'
+           AND COMPANY_EMP_API.Get_Name(v2.company_id, v2.emp_no) LIKE NVL(ename_,'%')
+            AND rownum = 1
+      ) st2; 
+BEGIN
+   OPEN work_hours(employee_name_, start_date_, stop_date_);
+   FETCH work_hours INTO answer_work_hours_;
+   CLOSE work_hours;
+
+   OPEN travel_hours(employee_name_, start_date_, stop_date_);
+   FETCH travel_hours INTO answer_travel_hours_;
+   CLOSE travel_hours;
+
+   OPEN shift_end_time_(employee_name_);
+   FETCH shift_end_time_ INTO answer_shift_end_time_;
+   CLOSE shift_end_time_;
+
+   shift_admin_time_ := Calculate_Shift_Admin_Time(employee_name_);
+
+   IF answer_shift_end_time_ IS NULL THEN
+      answer_shift_end_time_ := 0;
+   END IF;
+
+   idle_time_ := answer_shift_end_time_ - (answer_work_hours_ + answer_travel_hours_ + shift_admin_time_);
+
+   RETURN idle_time_;
+END Calculate_Idle_Time;
+--240521 ISURUG Calculate Idle Time (END)
+
+--C0448 EntPrageG (START)
+FUNCTION Get_Evaluation_Category_(
+   task_seq_ IN VARCHAR2) RETURN VARCHAR2
+IS
+   eval_category_ VARCHAR2(10);
+BEGIN
+   SELECT (CASE
+             WHEN survey_answer = '10' THEN
+              'Promotor'
+             WHEN survey_answer IN ('9', '8', '7') THEN
+              'Neutral'
+             ELSE
+              'Detractors'
+          END) eval_category
+     INTO eval_category_ 
+     FROM (SELECT a.wo_no,
+                  a.task_seq,               
+                  survey_id,
+                  Survey_Question_API.Get_Question_No(survey_id,
+                                                      question_id) question_no,
+                  question,
+                  Case
+                     WHEN Survey_Question_API.Get_Survey_Answer_Type_Db(survey_id,
+                                                                        question_id) =
+                          'DATE' THEN
+                      substr(answer, 1, 10)
+                     WHEN Survey_Question_API.Get_Survey_Answer_Type_Db(survey_id,
+                                                                        question_id) =
+                          'TIME' THEN
+                      substr(answer, 12, 19)
+                     ELSE
+                      answer
+                  END survey_answer
+             FROM jt_task_survey_answers a, jt_task_uiv b
+            WHERE a.wo_no = b.wo_no
+              AND a.task_seq = b.task_seq
+              AND survey_id IN (SELECT survey_id
+                                  FROM work_task_surveys
+                                  WHERE Work_Task_Survey = 'TRUE')
+              AND a.task_seq = task_seq_)
+    WHERE question_no = 2
+      AND survey_id = 'CUSTOMER_SATISFAC';   
+   RETURN eval_category_;
+EXCEPTION
+   WHEN OTHERS THEN
+      RETURN NULL;
+END Get_Evaluation_Category_;
+--C0448 EntPrageG (END)
 -------------------- LU  NEW METHODS -------------------------------------
