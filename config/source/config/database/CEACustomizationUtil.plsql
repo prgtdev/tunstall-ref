@@ -4505,4 +4505,1165 @@ EXCEPTION
       RETURN NULL;
 END Get_Evaluation_Category_;
 --C0448 EntPrageG (END)
+
+-- C458 EntMahesR (START)
+FUNCTION Get_SLA (
+   emp_no_     VARCHAR2,
+   company_    VARCHAR2,
+   start_date_ DATE,
+   end_date_   DATE) RETURN NUMBER
+IS
+   resource_seq_ NUMBER;
+   sla_met_task_count_ NUMBER := 0;
+   total_task_count_ NUMBER := 0;
+   
+   CURSOR get_sla_met_work_assignments(resource_seq_ NUMBER) IS
+      SELECT COUNT(1)
+      FROM jt_execution_instance_uiv jei, jt_task_uiv_cfv jt
+      WHERE jei.resource_seq = resource_seq_
+      AND jei.resource_type_db ='PERSON' 
+      AND jei.task_seq = jt.task_seq
+      AND jei.objstate = 'COMPLETED'
+      AND jt.company = company_      
+      AND jt.cf$_tunstall_sla IS NOT NULL
+      AND TRUNC(jei.work_finish) < TRUNC(jt.cf$_tunstall_sla)
+      AND TRUNC(jei.work_finish) BETWEEN start_date_ AND end_date_; 
+      
+   CURSOR get_finished_work_assignments(resource_seq_ NUMBER) IS
+      SELECT COUNT(1)
+      FROM jt_execution_instance_uiv jei, jt_task_uiv_cfv jt
+      WHERE jei.resource_seq = resource_seq_
+      AND jei.resource_type_db ='PERSON' 
+      AND jei.task_seq = jt.task_seq
+      AND jei.objstate = 'COMPLETED' 
+      AND jt.company = company_  
+      AND TRUNC(jei.work_finish) BETWEEN start_date_ AND end_date_;    
+BEGIN   
+   resource_seq_ := Maint_Person_Employee_API.Get_Resource_Seq(emp_no_, company_);
+   
+   OPEN get_sla_met_work_assignments(resource_seq_);
+   FETCH get_sla_met_work_assignments INTO sla_met_task_count_;
+   CLOSE get_sla_met_work_assignments;
+   
+   OPEN get_finished_work_assignments(resource_seq_);
+   FETCH get_finished_work_assignments INTO total_task_count_;
+   CLOSE get_finished_work_assignments;   
+      
+   IF (total_task_count_ = 0 ) THEN
+      RETURN 0;
+   ELSE    
+      RETURN ROUND(sla_met_task_count_/total_task_count_*100);
+   END IF;
+END Get_SLA; 
+
+FUNCTION Get_First_Fix (
+   emp_no_     VARCHAR2,
+   company_    VARCHAR2,
+   start_date_ DATE,
+   end_date_   DATE) RETURN NUMBER   
+IS
+   resource_seq_ NUMBER; 
+   first_fix_one_task_ass_count_ NUMBER := 0;
+   first_fix_many_task_ass_count_ NUMBER := 0;
+   completed_work_order_count_ NUMBER := 0;
+   
+   CURSOR get_first_fix_one_task_ass(resource_seq_ NUMBER) IS
+      SELECT COUNT(1) FROM(SELECT DISTINCT jt.wo_no
+                           FROM jt_execution_instance_uiv jei, jt_task_uiv_cfv jt
+                           WHERE jei.resource_seq = resource_seq_
+                           AND jei.resource_type_db ='PERSON' 
+                           AND jei.task_seq = jt.task_seq
+                           AND jei.objstate = 'COMPLETED'
+                           AND jt.company = company_  
+                           AND TRUNC(jei.work_finish) BETWEEN start_date_ AND end_date_
+                           AND jt.cf$_incomplete_cause = 'Job Complete'
+                           AND jt.wo_no IN (select wo_no FROM (SELECT count(1) count, wo_no 
+                                                               FROM jt_task_uiv 
+                                                               group by wo_no)
+                                                               WHERE count = 1));
+   
+   CURSOR get_first_fix_many_task_ass(resource_seq_ NUMBER) IS
+      SELECT COUNT(*) 
+      FROM(SELECT wo_no, count (1) 
+           FROM(SELECT jt.wo_no, jei.work_finish
+                FROM jt_execution_instance_uiv jei, jt_task_uiv_cfv jt
+                WHERE jei.resource_seq = resource_seq_
+                AND jei.resource_type_db ='PERSON' 
+                AND jei.task_seq = jt.task_seq
+                AND jei.objstate = 'COMPLETED'
+                AND jt.company = company_
+                AND TRUNC(jei.work_finish) BETWEEN start_date_ AND end_date_
+                AND jt.cf$_incomplete_cause = 'Job Complete'
+                AND jt.wo_no IN (SELECT wo_no 
+                                 FROM (SELECT count(1) count, wo_no 
+                                       FROM jt_task_uiv 
+                                       GROUP BY wo_no)
+                                 WHERE count > 1) 
+                AND jt.wo_no IN (SELECT wo_no
+                                 FROM (SELECT wo_no , count(1) count 
+                                       FROM jt_execution_instance_uiv 
+                                       group by wo_no)
+                                 WHERE count = 1))
+      GROUP BY wo_no);
+      
+   CURSOR get_completed_work_orders(resource_seq_ NUMBER) IS   
+      SELECT COUNT(DISTINCT wo_no) 
+      FROM(SELECT jt.WO_NO, jei.task_seq
+           FROM jt_execution_instance_uiv jei, jt_task_uiv_cfv jt
+           WHERE jei.resource_seq = resource_seq_
+           AND jei.resource_type_db ='PERSON' 
+           AND jei.task_seq = jt.task_seq
+           AND jei.objstate = 'COMPLETED' 
+           AND jt.company = company_
+           AND TRUNC(jei.work_finish) BETWEEN start_date_ AND end_date_);
+BEGIN
+   resource_seq_ := Maint_Person_Employee_API.Get_Resource_Seq(emp_no_, company_);
+   
+   OPEN get_first_fix_one_task_ass(resource_seq_);
+   FETCH get_first_fix_one_task_ass INTO first_fix_one_task_ass_count_;
+   CLOSE get_first_fix_one_task_ass;
+   
+   OPEN get_first_fix_many_task_ass(resource_seq_);
+   FETCH get_first_fix_many_task_ass INTO first_fix_many_task_ass_count_;
+   CLOSE get_first_fix_many_task_ass;
+   
+   OPEN get_completed_work_orders(resource_seq_);
+   FETCH get_completed_work_orders INTO completed_work_order_count_;
+   CLOSE get_completed_work_orders;
+   
+   IF (completed_work_order_count_ = 0 ) THEN
+      RETURN 0;
+   ELSE    
+      RETURN ROUND((first_fix_one_task_ass_count_ + first_fix_many_task_ass_count_)/completed_work_order_count_ * 100);
+   END IF;  
+   
+END Get_First_Fix; 
+
+-- Note that here survey_id and question_no has hardcoded because 
+-- method intended to retrieve values focusing the survey CUSTOMER_SATISFAC 
+-- and its question no 2 for the specific column in the crystal report.
+-- Also return value never take 999, as answer value always in the range 1 - 10 
+FUNCTION Get_NPS(
+   emp_no_     VARCHAR2,
+   company_    VARCHAR2,
+   start_date_ DATE,
+   end_date_   DATE) RETURN NUMBER
+IS
+   nps_ NUMBER;
+   CURSOR get_nps IS      
+      SELECT ROUND(AVG(answer) * 10)
+      FROM jt_task_survey_answers jtsa, survey_question sq
+      WHERE jtsa.survey_id = 'CUSTOMER_SATISFAC'
+      AND jtsa.emp_no = emp_no_
+      AND jtsa.company_id = company_
+      AND jtsa.survey_id = sq.survey_id
+      AND jtsa.question_id = sq.question_id
+      AND sq.question_no = 2
+      AND TRUNC(jtsa.date_created) BETWEEN start_date_ AND end_date_;
+BEGIN   
+   OPEN get_nps;
+   FETCH get_nps INTO nps_;
+   CLOSE get_nps;   
+   IF (nps_ IS NULL) THEN
+      RETURN 999;
+   ELSE
+      RETURN nps_;
+   END IF;      
+END Get_NPS;
+
+FUNCTION Get_No_Access(
+   emp_no_     VARCHAR2,
+   company_    VARCHAR2,
+   start_date_ DATE,
+   end_date_   DATE) RETURN NUMBER
+IS
+   resource_seq_ NUMBER; 
+   no_access_wo_count_ NUMBER := 0;
+   completed_work_order_count_ NUMBER := 0;
+   
+   CURSOR get_no_access_work_orders(resource_seq_ NUMBER) IS      
+      SELECT COUNT(DISTINCT jt.wo_no)
+      FROM jt_execution_instance_uiv jei, jt_task_uiv_cfv jt
+      WHERE jei.task_seq = jt.task_seq
+      AND jei.resource_seq = resource_seq_
+      AND jei.resource_type_db ='PERSON' 
+      AND jt.cf$_incomplete_cause = 'No Access'
+      AND jei.objstate = 'COMPLETED'
+      AND jt.company = company_
+      AND TRUNC(jt.actual_finish) BETWEEN start_date_ AND end_date_;  
+      
+   CURSOR get_completed_work_orders(resource_seq_ NUMBER) IS   
+      SELECT COUNT(DISTINCT jt.wo_no)       
+      FROM jt_execution_instance_uiv jei, jt_task_uiv_cfv jt
+      WHERE jei.resource_seq = resource_seq_
+      AND jei.resource_type_db ='PERSON' 
+      AND jei.task_seq = jt.task_seq
+      AND jei.objstate = 'COMPLETED' 
+      AND jt.company = company_
+      AND TRUNC(jei.work_finish) BETWEEN start_date_ AND end_date_;    
+BEGIN
+   resource_seq_ := Maint_Person_Employee_API.Get_Resource_Seq(emp_no_, company_);
+   
+   OPEN get_no_access_work_orders(resource_seq_);
+   FETCH get_no_access_work_orders INTO no_access_wo_count_;
+   CLOSE get_no_access_work_orders;
+   
+   OPEN get_completed_work_orders(resource_seq_);
+   FETCH get_completed_work_orders INTO completed_work_order_count_;
+   CLOSE get_completed_work_orders;
+   
+   IF (completed_work_order_count_ = 0 ) THEN
+      RETURN 0;
+   ELSE    
+      RETURN ROUND(no_access_wo_count_/completed_work_order_count_ * 100);
+   END IF;
+   
+END Get_No_Access; 
+
+FUNCTION Get_Value_Added_Work(
+   emp_no_     VARCHAR2,
+   company_    VARCHAR2,
+   start_date_ DATE,
+   end_date_   DATE) RETURN NUMBER
+IS
+   total_wo_and_travel_time_ NUMBER := 0;
+   total_shift_time_ NUMBER := 0;
+   
+   CURSOR get_work_order_and_travel_time IS      
+      SELECT SUM(jtc.work_hours)
+      FROM jt_task_clocking_uiv jtc, jt_task_uiv_cfv jt
+      WHERE jtc.task_seq = jt.task_seq
+      AND jtc.employee_id = emp_no_
+      AND jtc.clocking_category_db IN ('WORK', 'TRAVEL')
+      AND jt.actual_finish IS NOT NULL
+      AND jt.company = company_
+      AND TRUNC(jtc.start_time) BETWEEN start_date_ AND end_date_
+      AND TRUNC(jtc.stop_time) BETWEEN start_date_ AND end_date_;
+   
+   -- return value in hours    
+   CURSOR get_total_shift_time IS 
+      WITH shift_begin AS (SELECT TRUNC(jtsa.date_created) trunc_date_created,MIN(jtsa.date_created) shift_begin_time , jtsa.emp_no emp_no
+                           FROM jt_task_survey_answers jtsa, survey_question sq
+                           WHERE jtsa.survey_id = sq.survey_id
+                           AND jtsa.question_id = sq.question_id
+                           AND sq.question_no = 1
+                           AND jtsa.survey_id IN  ('DAILY_VEC_CHECK','MON_VEC_CHECK')
+                           AND TRUNC(jtsa.date_created) BETWEEN start_date_ AND end_date_
+                           GROUP BY TRUNC(jtsa.date_created), jtsa.emp_no)
+      SELECT SUM(((jtsa.date_created - shift_begin.shift_begin_time) * 24)) sum_shift_time
+      FROM jt_task_survey_answers jtsa, survey_question sq, shift_begin
+      WHERE jtsa.survey_id = sq.survey_id
+      AND jtsa.question_id = sq.question_id
+      AND sq.question_no = 1
+      AND jtsa.emp_no = emp_no_
+      AND jtsa.survey_id = 'END_MILEAGE'
+      AND jtsa.company_id = company_
+      AND TRUNC(jtsa.date_created) BETWEEN start_date_ AND end_date_
+      AND shift_begin.trunc_date_created = TRUNC(jtsa.date_created)
+      AND shift_begin.emp_no = jtsa.emp_no;
+BEGIN
+   OPEN get_work_order_and_travel_time;
+   FETCH get_work_order_and_travel_time INTO total_wo_and_travel_time_;
+   CLOSE get_work_order_and_travel_time;
+   
+   OPEN get_total_shift_time;
+   FETCH get_total_shift_time INTO total_shift_time_;
+   CLOSE get_total_shift_time;
+   
+   IF (NVL(total_shift_time_, 0) = 0 ) THEN
+      RETURN 0;
+   ELSE    
+      RETURN ROUND(total_wo_and_travel_time_/total_shift_time_*100);
+   END IF; 
+   
+END Get_Value_Added_Work; 
+
+FUNCTION Get_Total_Non_Wo_Travel___(  
+   emp_no_     VARCHAR2,
+   company_    VARCHAR2,
+   start_date_ DATE,
+   end_date_   DATE) RETURN NUMBER
+IS
+   total_non_work_order_travel_ NUMBER := 0; 
+   question_2_answer_ DATE;
+   question_4_answer_ DATE;
+   
+   CURSOR get_non_wo_travel IS
+      SELECT sq.question_no, jtsa.answer
+      FROM jt_task_survey_answers jtsa, survey_question sq
+      WHERE jtsa.survey_id = sq.survey_id
+      AND jtsa.question_id = sq.question_id
+      AND sq.question_no IN (2, 4)
+      AND jtsa.survey_id = 'NON WO MILEAGE'
+      AND jtsa.emp_no = emp_no_
+      AND TRUNC(jtsa.date_created) BETWEEN start_date_ AND end_date_
+      order by jtsa.date_created;
+BEGIN
+   FOR rec_ IN get_non_wo_travel LOOP
+      IF (rec_.question_no = 2) THEN  
+         question_2_answer_ :=  TO_DATE(rec_.answer, 'YYYY-MM-DD-HH24.MI.SS');         
+      ELSIF (rec_.question_no = 4) THEN   
+         question_4_answer_ :=  TO_DATE(rec_.answer, 'YYYY-MM-DD-HH24.MI.SS');        
+         total_non_work_order_travel_ := total_non_work_order_travel_ + NVL((question_4_answer_ - question_2_answer_) ,0);         
+         question_2_answer_ := NULL;
+         question_4_answer_ := NULL;
+      END IF;   
+   END LOOP; 
+   -- return value in hours   
+   RETURN (total_non_work_order_travel_ * 24);
+   
+END Get_Total_Non_Wo_Travel___; 
+
+FUNCTION Get_Total_Non_Wo_Time___ (  
+   emp_no_     VARCHAR2,
+   company_    VARCHAR2,
+   start_date_ DATE,
+   end_date_   DATE) RETURN NUMBER
+IS
+   total_non_work_order_time_ NUMBER := 0; 
+   question_2_answer_ DATE;
+   question_3_answer_ DATE;
+   
+   CURSOR get_non_wo_time IS
+      SELECT sq.question_no, jtsa.answer
+      FROM jt_task_survey_answers jtsa, survey_question sq
+      WHERE jtsa.survey_id = sq.survey_id
+      AND jtsa.question_id = sq.question_id
+      AND sq.question_no IN (2, 3)
+      AND jtsa.survey_id = 'NON WO TIME'
+      AND jtsa.emp_no = emp_no_
+      AND TRUNC(jtsa.date_created) BETWEEN start_date_ AND end_date_
+      order by jtsa.date_created;
+BEGIN
+   FOR rec_ IN get_non_wo_time LOOP
+      IF (rec_.question_no = 2) THEN  
+         question_2_answer_ :=  TO_DATE(rec_.answer, 'YYYY-MM-DD-HH24.MI.SS');  
+      ELSIF (rec_.question_no = 3) THEN   
+         question_3_answer_ :=  TO_DATE(rec_.answer, 'YYYY-MM-DD-HH24.MI.SS');
+         total_non_work_order_time_ := total_non_work_order_time_ + (question_3_answer_ - question_2_answer_);
+         question_2_answer_ := NULL;
+         question_3_answer_ := NULL;
+      END IF;   
+   END LOOP; 
+   -- return value in hours
+   RETURN (total_non_work_order_time_ * 24);
+END Get_Total_Non_Wo_Time___; 
+
+FUNCTION Get_Non_Value_Added_Work(
+   emp_no_     VARCHAR2,
+   company_    VARCHAR2,
+   start_date_ DATE,
+   end_date_   DATE) RETURN NUMBER
+IS
+   total_daily_vec_chk_q5_ NUMBER;
+   total_mon_vec_chk_q14_ NUMBER;
+   total_non_work_order_travel_ NUMBER;
+   total_non_work_order_time_ NUMBER;
+   total_shift_time_ NUMBER := 0;
+   
+   -- return value in hours
+   CURSOR get_daily_vec_chk_q5_total IS
+      SELECT (SUM(jtsa.answer)) * (1/60)
+      FROM jt_task_survey_answers jtsa, survey_question sq
+      WHERE jtsa.survey_id = sq.survey_id
+      AND jtsa.question_id = sq.question_id
+      AND sq.question_no = 5
+      AND jtsa.survey_id = 'DAILY_VEC_CHECK'
+      AND jtsa.emp_no = emp_no_
+      AND TRUNC(jtsa.date_created) BETWEEN start_date_ AND end_date_;
+   
+   -- return value in hours   
+   CURSOR get_mon_vec_chk_q14_total IS
+      SELECT (SUM(jtsa.answer)) * (1/60)
+      FROM jt_task_survey_answers jtsa, survey_question sq
+      WHERE jtsa.survey_id = sq.survey_id
+      AND jtsa.question_id = sq.question_id
+      AND sq.question_no = 14
+      AND jtsa.survey_id = 'MON_VEC_CHECK'
+      AND jtsa.emp_no = emp_no_
+      AND TRUNC(jtsa.date_created) BETWEEN start_date_ AND end_date_;   
+    
+   -- return value in hours    
+   CURSOR get_total_shift_time IS 
+      WITH shift_begin AS (SELECT TRUNC(jtsa.date_created) trunc_date_created,MIN(jtsa.date_created) shift_begin_time , jtsa.emp_no emp_no
+                           FROM jt_task_survey_answers jtsa, survey_question sq
+                           WHERE jtsa.survey_id = sq.survey_id
+                           AND jtsa.question_id = sq.question_id
+                           AND sq.question_no = 1
+                           AND jtsa.survey_id IN  ('DAILY_VEC_CHECK','MON_VEC_CHECK')
+                           AND TRUNC(jtsa.date_created) BETWEEN start_date_ AND end_date_
+                           GROUP BY TRUNC(jtsa.date_created), jtsa.emp_no)
+      SELECT SUM(((jtsa.date_created - shift_begin.shift_begin_time) * 24)) sum_shift_time
+      FROM jt_task_survey_answers jtsa, survey_question sq, shift_begin
+      WHERE jtsa.survey_id = sq.survey_id
+      AND jtsa.question_id = sq.question_id
+      AND sq.question_no = 1
+      AND jtsa.emp_no = emp_no_
+      AND jtsa.survey_id = 'END_MILEAGE'
+      AND jtsa.company_id = company_
+      AND TRUNC(jtsa.date_created) BETWEEN start_date_ AND end_date_
+      AND shift_begin.trunc_date_created = TRUNC(jtsa.date_created)
+      AND shift_begin.emp_no = jtsa.emp_no;
+BEGIN
+   OPEN get_daily_vec_chk_q5_total;
+   FETCH get_daily_vec_chk_q5_total INTO total_daily_vec_chk_q5_;
+   CLOSE get_daily_vec_chk_q5_total;
+   
+   OPEN get_mon_vec_chk_q14_total;
+   FETCH get_mon_vec_chk_q14_total INTO total_mon_vec_chk_q14_;
+   CLOSE get_mon_vec_chk_q14_total;      
+  
+   total_non_work_order_travel_ := Get_Total_Non_Wo_Travel___(emp_no_, company_, start_date_, end_date_);
+   
+   total_non_work_order_time_ := Get_Total_Non_Wo_Time___(emp_no_, company_, start_date_, end_date_);
+   
+   OPEN get_total_shift_time;
+   FETCH get_total_shift_time INTO total_shift_time_;
+   CLOSE get_total_shift_time;
+   
+   IF (NVL(total_shift_time_, 0) = 0 ) THEN
+      RETURN 0;
+   ELSE    
+      RETURN ROUND((NVL(total_daily_vec_chk_q5_, 0) + NVL(total_mon_vec_chk_q14_, 0) + NVL(total_non_work_order_travel_, 0) + NVL(total_non_work_order_time_, 0))/total_shift_time_*100);
+   END IF;   
+  
+END Get_Non_Value_Added_Work;
+
+FUNCTION Get_Current_Rank(
+   emp_no_     VARCHAR2,
+   company_    VARCHAR2,
+   start_date_ DATE,
+   end_date_   DATE) RETURN NUMBER
+IS   
+   PRAGMA  AUTONOMOUS_TRANSACTION;    
+       
+   sla_ NUMBER;
+   first_fix_ NUMBER;
+   nps_ NUMBER;
+   no_access_ NUMBER;
+   value_added_work_ NUMBER;
+   non_value_added_work_ NUMBER;
+   score_ NUMBER;  
+   rank_ NUMBER := 0;
+
+   CURSOR get_employees IS
+      SELECT me.emp_no, me.name
+      FROM maint_empolyee_uiv me, maint_person_employee mpe
+      WHERE me.org_code IN ('M1','M2','M3','M4','M5')
+      AND me.emp_no = mpe.emp_no
+      AND me.resource_seq = mpe.resource_seq;
+      
+   CURSOR get_employees_sorted IS
+      SELECT emp_no, RANK() OVER (ORDER BY score DESC) rank
+      FROM emp_current_score_tmp
+      ORDER BY score DESC;      
+      
+BEGIN 
+   FOR rec_ IN get_employees LOOP      
+      nps_ := Get_NPS(rec_.emp_no, company_, start_date_, end_date_); 
+      -- if there are no surveys satisfying the requirement(ie value gets 999) no need to consider for overall score calculation
+      IF (nps_ != 999) THEN
+         sla_ := Get_SLA(rec_.emp_no, company_, start_date_, end_date_);
+         first_fix_ := Get_First_Fix(rec_.emp_no, company_, start_date_, end_date_); 
+         no_access_ := Get_No_Access(rec_.emp_no, company_, start_date_, end_date_); 
+         value_added_work_ := Get_Value_Added_Work(rec_.emp_no, company_, start_date_, end_date_); 
+         non_value_added_work_ := Get_Non_Value_Added_Work(rec_.emp_no, company_, start_date_, end_date_); 
+         score_ := (sla_ + first_fix_ + nps_ + (100 - no_access_) + value_added_work_ + (100 - non_value_added_work_))/6;  
+      ELSE
+         score_ := 0;
+      END IF;  
+      
+      -- inserting records to the temporary table in order to sort later
+      IF (score_ != 0) THEN 
+         INSERT INTO emp_current_score_tmp(emp_no, score)  
+         VALUES (rec_.emp_no, score_);         
+      END IF;
+   END LOOP;
+  
+   FOR rec_ IN get_employees_sorted LOOP
+      IF (rec_.emp_no = emp_no_) THEN
+         rank_ := rec_.rank;
+         EXIT;
+      END IF;
+   END LOOP; 
+   @ApproveTransactionStatement(2021-07-30, EntMahesR)   
+   COMMIT;   
+   RETURN rank_;
+   
+END Get_Current_Rank;
+
+FUNCTION Get_Previous_Score(
+   emp_no_     VARCHAR2,
+   company_    VARCHAR2,
+   start_date_ DATE,
+   end_date_   DATE) RETURN NUMBER
+IS
+   no_of_days_ NUMBER;
+   previous_start_date_ DATE;
+   previous_end_date_ DATE;
+   previous_sla_ NUMBER;
+   previous_first_fix_ NUMBER;
+   previous_nps_ NUMBER;
+   previous_no_access_ NUMBER;
+   previous_value_added_work_ NUMBER;
+   previous_non_value_added_work_ NUMBER;
+   previous_score_ NUMBER; 
+BEGIN
+   no_of_days_ := end_date_ - start_date_;  
+   previous_start_date_ := start_date_ - no_of_days_;
+   previous_end_date_ := end_date_ - no_of_days_;
+   
+   previous_nps_ := Get_NPS(emp_no_, company_, previous_start_date_, previous_end_date_); 
+   -- if there are no surveys satisfying the requirement(ie value gets 999) no need to consider for overall score calculation
+   IF (previous_nps_ != 999) THEN
+      previous_sla_ := Get_SLA(emp_no_, company_, previous_start_date_, previous_end_date_);
+      previous_first_fix_ := Get_First_Fix(emp_no_, company_, previous_start_date_, previous_end_date_); 
+      previous_no_access_ := Get_No_Access(emp_no_, company_, previous_start_date_, previous_end_date_); 
+      previous_value_added_work_ := Get_Value_Added_Work(emp_no_, company_, previous_start_date_, previous_end_date_); 
+      previous_non_value_added_work_ := Get_Non_Value_Added_Work(emp_no_, company_, previous_start_date_, previous_end_date_); 
+      previous_score_ := (previous_sla_ + previous_first_fix_ + previous_nps_ + (100 - previous_no_access_) + previous_value_added_work_ + (100 - previous_non_value_added_work_))/6;  
+   ELSE
+      previous_score_ := 0;
+   END IF;   
+   
+   RETURN previous_score_;
+   
+END Get_Previous_Score;  
+
+FUNCTION Get_Previous_Rank(
+   emp_no_     VARCHAR2,
+   company_    VARCHAR2,
+   start_date_ DATE,
+   end_date_   DATE) RETURN NUMBER
+IS   
+   PRAGMA  AUTONOMOUS_TRANSACTION; 
+   
+   no_of_days_ NUMBER;    
+   previous_start_date_ DATE;
+   previous_end_date_ DATE;
+   previous_sla_ NUMBER;
+   previous_first_fix_ NUMBER;
+   previous_nps_ NUMBER;
+   previous_no_access_ NUMBER;
+   previous_value_added_work_ NUMBER;
+   previous_non_value_added_work_ NUMBER;
+   previous_score_ NUMBER;  
+   rank_ NUMBER := 0;
+
+   CURSOR get_employees IS
+      SELECT me.emp_no, me.name
+      FROM maint_empolyee_uiv me, maint_person_employee mpe
+      WHERE me.org_code IN ('M1','M2','M3','M4','M5')
+      AND me.emp_no = mpe.emp_no
+      AND me.resource_seq = mpe.resource_seq;
+      
+   CURSOR get_employees_sorted IS
+      SELECT emp_no, RANK() OVER (ORDER BY score DESC) rank
+      FROM emp_previous_score_tmp
+      ORDER BY score DESC;      
+      
+BEGIN
+   no_of_days_ := end_date_ - start_date_;  
+   previous_start_date_ := start_date_ - no_of_days_;
+   previous_end_date_ := end_date_ - no_of_days_; 
+   
+   FOR rec_ IN get_employees LOOP      
+      previous_nps_ := Get_NPS(rec_.emp_no, company_, previous_start_date_, previous_end_date_); 
+      -- if there are no surveys satisfying the requirement(ie value gets 999) no need to consider for overall score calculation
+      IF (previous_nps_ != 999) THEN
+         previous_sla_ := Get_SLA(rec_.emp_no, company_, previous_start_date_, previous_end_date_);
+         previous_first_fix_ := Get_First_Fix(rec_.emp_no, company_, previous_start_date_, previous_end_date_); 
+         previous_no_access_ := Get_No_Access(rec_.emp_no, company_, previous_start_date_, previous_end_date_); 
+         previous_value_added_work_ := Get_Value_Added_Work(rec_.emp_no, company_, previous_start_date_, previous_end_date_); 
+         previous_non_value_added_work_ := Get_Non_Value_Added_Work(rec_.emp_no, company_, previous_start_date_, previous_end_date_); 
+         previous_score_ := (previous_sla_ + previous_first_fix_ + previous_nps_ + (100 - previous_no_access_) + previous_value_added_work_ + (100 - previous_non_value_added_work_))/6;  
+      ELSE
+         previous_score_ := 0;
+      END IF;  
+      
+      -- inserting records to the temporary table in order to sort later
+      IF (previous_score_ != 0) THEN 
+         INSERT INTO emp_previous_score_tmp(emp_no, score)  
+         VALUES (rec_.emp_no, previous_score_);         
+      END IF;
+   END LOOP;   
+   
+   FOR rec_ IN get_employees_sorted LOOP
+      IF (rec_.emp_no = emp_no_) THEN
+         rank_ := rec_.rank;
+         EXIT;
+      END IF;
+   END LOOP; 
+   @ApproveTransactionStatement(2021-07-30, EntMahesR)   
+   COMMIT;   
+   RETURN rank_;
+   
+END Get_Previous_Rank;
+
+FUNCTION Get_Regional_SLA (
+   org_code_   VARCHAR2,
+   company_    VARCHAR2,
+   start_date_ IN DATE,
+   end_date_   IN DATE) RETURN NUMBER
+IS
+   count_ NUMBER := 0;
+   sum_sla_ NUMBER := 0;   
+   
+   CURSOR get_org_employees IS
+      SELECT me.emp_no 
+      FROM maint_empolyee_uiv me, maint_person_employee mpe
+      WHERE me.org_code = org_code_
+      AND me.emp_no = mpe.emp_no
+      AND me.resource_seq = mpe.resource_seq;
+BEGIN
+   FOR rec_ IN get_org_employees LOOP
+      sum_sla_ :=  sum_sla_ + Get_SLA(rec_.emp_no, company_, start_date_, end_date_);
+      count_ := count_ + 1;
+   END LOOP;
+   RETURN ROUND(sum_sla_/count_);  
+END Get_Regional_SLA;
+
+FUNCTION Get_Regional_First_Fix (
+   org_code_   VARCHAR2,
+   company_    VARCHAR2,
+   start_date_ IN DATE,
+   end_date_   IN DATE) RETURN NUMBER
+IS
+   count_ NUMBER := 0;
+   sum_first_fix_ NUMBER := 0;   
+   
+   CURSOR get_org_employees IS
+      SELECT me.emp_no 
+      FROM maint_empolyee_uiv me, maint_person_employee mpe
+      WHERE me.org_code = org_code_
+      AND me.emp_no = mpe.emp_no
+      AND me.resource_seq = mpe.resource_seq;
+BEGIN
+   FOR rec_ IN get_org_employees LOOP
+      sum_first_fix_ :=  sum_first_fix_ + Get_First_Fix(rec_.emp_no, company_, start_date_, end_date_);
+      count_ := count_ + 1;
+   END LOOP;
+   RETURN ROUND(sum_first_fix_/count_);
+END Get_Regional_First_Fix;   
+
+FUNCTION Get_Regional_NPS (
+   org_code_   VARCHAR2,
+   company_    VARCHAR2,
+   start_date_ IN DATE,
+   end_date_   IN DATE) RETURN NUMBER
+IS
+   count_ NUMBER := 0;
+   sum_nps_ NUMBER := 0;   
+   individual_nps_ NUMBER := 0;
+   return_value_ NUMBER := 0;
+   
+   CURSOR get_org_employees IS
+      SELECT me.emp_no 
+      FROM maint_empolyee_uiv me, maint_person_employee mpe
+      WHERE me.org_code = org_code_
+      AND me.emp_no = mpe.emp_no
+      AND me.resource_seq = mpe.resource_seq;
+BEGIN
+   FOR rec_ IN get_org_employees LOOP
+      individual_nps_ := Get_NPS(rec_.emp_no, company_, start_date_, end_date_);
+      -- If anyone of employees has no surveys completed during time period, disregard that figure and 
+      -- do the calculation using other employees figures
+      IF (individual_nps_ = 999) THEN
+         return_value_ := 999;         
+      ELSE
+         sum_nps_ :=  sum_nps_ + individual_nps_;
+         count_ := count_ + 1;
+      END IF;       
+   END LOOP;
+   IF (return_value_ = 999) THEN
+      RETURN return_value_;   
+   ELSE
+      RETURN ROUND(sum_nps_/count_);
+   END IF;   
+   
+END Get_Regional_NPS;
+
+FUNCTION Get_Regional_No_Access(
+   org_code_   VARCHAR2,
+   company_    VARCHAR2,
+   start_date_ DATE,
+   end_date_   DATE) RETURN NUMBER
+IS
+   count_ NUMBER := 0;
+   sum_no_access_ NUMBER := 0;   
+   
+   CURSOR get_org_employees IS
+      SELECT me.emp_no 
+      FROM maint_empolyee_uiv me, maint_person_employee mpe
+      WHERE me.org_code = org_code_
+      AND me.emp_no = mpe.emp_no
+      AND me.resource_seq = mpe.resource_seq;
+BEGIN
+   FOR rec_ IN get_org_employees LOOP
+      sum_no_access_ :=  sum_no_access_ + Get_No_Access(rec_.emp_no, company_, start_date_, end_date_);
+      count_ := count_ + 1;
+   END LOOP;
+   RETURN ROUND(sum_no_access_/count_);
+END Get_Regional_No_Access; 
+
+FUNCTION Get_Regional_Value_Added_Work(
+   org_code_   VARCHAR2,
+   company_    VARCHAR2,
+   start_date_ DATE,
+   end_date_   DATE) RETURN NUMBER
+IS
+   count_ NUMBER := 0;
+   sum_value_added_work_ NUMBER := 0;   
+   
+   CURSOR get_org_employees IS
+      SELECT me.emp_no 
+      FROM maint_empolyee_uiv me, maint_person_employee mpe
+      WHERE me.org_code = org_code_
+      AND me.emp_no = mpe.emp_no
+      AND me.resource_seq = mpe.resource_seq;
+BEGIN 
+   FOR rec_ IN get_org_employees LOOP
+      sum_value_added_work_ :=  sum_value_added_work_ + Get_Value_Added_Work(rec_.emp_no, company_, start_date_, end_date_);
+      count_ := count_ + 1;
+   END LOOP;
+   RETURN ROUND(sum_value_added_work_/count_);
+END Get_Regional_Value_Added_Work;
+
+FUNCTION Get_Regional_Nonval_Added_Work(
+   org_code_   VARCHAR2,
+   company_    VARCHAR2,
+   start_date_ DATE,
+   end_date_   DATE) RETURN NUMBER
+IS
+   count_ NUMBER := 0;
+   sum_non_value_added_work_ NUMBER := 0;   
+   
+   CURSOR get_org_employees IS
+      SELECT me.emp_no 
+      FROM maint_empolyee_uiv me, maint_person_employee mpe
+      WHERE me.org_code = org_code_
+      AND me.emp_no = mpe.emp_no
+      AND me.resource_seq = mpe.resource_seq;
+BEGIN
+   FOR rec_ IN get_org_employees LOOP
+      sum_non_value_added_work_ :=  sum_non_value_added_work_ + Get_Non_Value_Added_Work(rec_.emp_no, company_, start_date_, end_date_);
+      count_ := count_ + 1;
+   END LOOP;
+   RETURN ROUND(sum_non_value_added_work_/count_);   
+END Get_Regional_Nonval_Added_Work;    
+
+FUNCTION Get_Current_Regional_Rank(
+   org_code_   VARCHAR2,
+   company_    VARCHAR2,
+   start_date_ DATE,
+   end_date_   DATE) RETURN NUMBER
+IS   
+   PRAGMA  AUTONOMOUS_TRANSACTION;    
+       
+   sla_ NUMBER;
+   first_fix_ NUMBER;
+   nps_ NUMBER;
+   no_access_ NUMBER;
+   value_added_work_ NUMBER;
+   non_value_added_work_ NUMBER;
+   score_ NUMBER;  
+   rank_ NUMBER := 0;
+
+   CURSOR get_organizations IS
+      SELECT DISTINCT me.org_code
+      FROM maint_empolyee_uiv me, maint_person_employee mpe
+      WHERE me.org_code IN ('M1','M2','M3','M4','M5')
+      AND me.emp_no = mpe.emp_no
+      AND me.resource_seq = mpe.resource_seq;
+      
+   CURSOR get_organizations_sorted IS
+      SELECT org_code, RANK() OVER (ORDER BY score DESC) rank
+      FROM reg_current_score_tmp  
+      ORDER BY score DESC;      
+      
+BEGIN 
+   FOR rec_ IN get_organizations LOOP      
+      nps_ := Get_Regional_NPS(rec_.org_code, company_, start_date_, end_date_);      
+      
+      -- if there are no surveys satisfying the requirement(ie value gets 999) no need to consider for overall score calculation
+      IF (nps_ != 999) THEN
+         sla_ := Get_Regional_SLA (rec_.org_code, company_, start_date_, end_date_);
+         first_fix_ := Get_Regional_First_Fix (rec_.org_code, company_, start_date_, end_date_); 
+         no_access_ := Get_Regional_No_Access(rec_.org_code, company_, start_date_, end_date_); 
+         value_added_work_ := Get_Regional_Value_Added_Work(rec_.org_code, company_, start_date_, end_date_); 
+         non_value_added_work_ := Get_Regional_Nonval_Added_Work(rec_.org_code, company_, start_date_, end_date_); 
+         score_ := (sla_ + first_fix_ + nps_ + (100 - no_access_) + value_added_work_ + (100 - non_value_added_work_))/6;  
+      ELSE
+         score_ := 0;
+      END IF;  
+      
+      -- inserting records to the temporary table in order to sort later
+      IF (score_ != 0) THEN 
+         INSERT INTO reg_current_score_tmp(org_code, score)  
+         VALUES (rec_.org_code, score_);
+      END IF;
+   END LOOP;
+  
+   FOR rec_ IN get_organizations_sorted LOOP
+      IF (rec_.org_code = org_code_) THEN
+         rank_ := rec_.rank;
+         EXIT;
+      END IF;
+   END LOOP; 
+   @ApproveTransactionStatement(2021-08-04, EntMahesR)  
+   COMMIT;   
+   RETURN rank_;
+   
+END Get_Current_Regional_Rank;
+
+FUNCTION Get_Previous_Regional_Rank(
+   org_code_   VARCHAR2,
+   company_    VARCHAR2,
+   start_date_ DATE,
+   end_date_   DATE) RETURN NUMBER
+IS   
+   PRAGMA  AUTONOMOUS_TRANSACTION; 
+   
+   no_of_days_ NUMBER;    
+   previous_start_date_ DATE;
+   previous_end_date_ DATE;
+   previous_sla_ NUMBER;
+   previous_first_fix_ NUMBER;
+   previous_nps_ NUMBER;
+   previous_no_access_ NUMBER;
+   previous_value_added_work_ NUMBER;
+   previous_non_value_added_work_ NUMBER;
+   previous_score_ NUMBER;  
+   rank_ NUMBER := 0;
+
+   CURSOR get_organizations IS
+      SELECT DISTINCT me.org_code
+      FROM maint_empolyee_uiv me, maint_person_employee mpe
+      WHERE me.org_code IN ('M1','M2','M3','M4','M5')
+      AND me.emp_no = mpe.emp_no
+      AND me.resource_seq = mpe.resource_seq;
+      
+   CURSOR get_organizations_sorted IS
+      SELECT org_code, RANK() OVER (ORDER BY score DESC) rank
+      FROM reg_previous_score_tmp  
+      ORDER BY score DESC;        
+BEGIN
+   no_of_days_ := end_date_ - start_date_;  
+   previous_start_date_ := start_date_ - no_of_days_;
+   previous_end_date_ := end_date_ - no_of_days_; 
+   
+   FOR rec_ IN get_organizations LOOP      
+      previous_nps_ := Get_Regional_NPS(rec_.org_code, company_, previous_start_date_, previous_end_date_); 
+      -- if there are no surveys satisfying the requirement(ie value gets 999) no need to consider for overall score calculation
+      IF (previous_nps_ != 999) THEN
+         previous_sla_ := Get_Regional_SLA (rec_.org_code, company_, previous_start_date_, previous_end_date_);
+         previous_first_fix_ := Get_Regional_First_Fix (rec_.org_code, company_, previous_start_date_, previous_end_date_); 
+         previous_no_access_ := Get_Regional_No_Access(rec_.org_code, company_, previous_start_date_, previous_end_date_); 
+         previous_value_added_work_ := Get_Regional_Value_Added_Work(rec_.org_code, company_, previous_start_date_, previous_end_date_); 
+         previous_non_value_added_work_ := Get_Regional_Nonval_Added_Work(rec_.org_code, company_, previous_start_date_, previous_end_date_); 
+         previous_score_ := (previous_sla_ + previous_first_fix_ + previous_nps_ + (100 - previous_no_access_) + previous_value_added_work_ + (100 - previous_non_value_added_work_))/6;  
+      ELSE
+         previous_score_ := 0;
+      END IF;  
+      
+      -- inserting records to the temporary table in order to sort later
+      IF (previous_score_ != 0) THEN 
+         INSERT INTO reg_previous_score_tmp(org_code, score)  
+         VALUES (rec_.org_code, previous_score_);          
+      END IF;
+   END LOOP;   
+   
+   FOR rec_ IN get_organizations_sorted LOOP
+      IF (rec_.org_code = org_code_) THEN
+         rank_ := rec_.rank;
+         EXIT;
+      END IF;
+   END LOOP; 
+   @ApproveTransactionStatement(2021-08-04, EntMahesR)     
+   COMMIT;   
+   RETURN rank_;
+   
+END Get_Previous_Regional_Rank;
+
+FUNCTION Get_Company_SLA (
+   company_    VARCHAR2,
+   start_date_ IN DATE,
+   end_date_   IN DATE) RETURN NUMBER
+IS
+   count_ NUMBER := 0;
+   sum_sla_ NUMBER := 0;   
+   
+   CURSOR get_company_employees IS
+      SELECT me.emp_no 
+      FROM maint_empolyee_uiv me, maint_person_employee mpe
+      WHERE me.org_code IN ('M1','M2','M3','M4','M5')
+      AND me.emp_no = mpe.emp_no
+      AND me.resource_seq = mpe.resource_seq
+      AND mpe.company = company_;  
+BEGIN
+   FOR rec_ IN get_company_employees LOOP
+      sum_sla_ :=  sum_sla_ + Get_SLA(rec_.emp_no, company_, start_date_, end_date_);
+      count_ := count_ + 1;
+   END LOOP;
+   RETURN ROUND(sum_sla_/count_);  
+END Get_Company_SLA;
+
+FUNCTION Get_Company_First_Fix (   
+   company_    VARCHAR2,
+   start_date_ IN DATE,
+   end_date_   IN DATE) RETURN NUMBER
+IS
+   count_ NUMBER := 0;
+   sum_first_fix_ NUMBER := 0;   
+   
+   CURSOR get_company_employees IS
+      SELECT me.emp_no 
+      FROM maint_empolyee_uiv me, maint_person_employee mpe
+      WHERE me.org_code IN ('M1','M2','M3','M4','M5')
+      AND me.emp_no = mpe.emp_no
+      AND me.resource_seq = mpe.resource_seq
+      AND mpe.company = company_; 
+BEGIN
+   FOR rec_ IN get_company_employees LOOP
+      sum_first_fix_ :=  sum_first_fix_ + Get_First_Fix(rec_.emp_no, company_, start_date_, end_date_);
+      count_ := count_ + 1;
+   END LOOP;
+   RETURN ROUND(sum_first_fix_/count_);
+END Get_Company_First_Fix; 
+
+FUNCTION Get_Company_NPS (   
+   company_    VARCHAR2,
+   start_date_ IN DATE,
+   end_date_   IN DATE) RETURN NUMBER
+IS
+   count_ NUMBER := 0;
+   sum_nps_ NUMBER := 0;   
+   individual_nps_ NUMBER := 0;
+   return_value_ NUMBER := 0;
+   
+   CURSOR get_company_employees IS
+      SELECT me.emp_no 
+      FROM maint_empolyee_uiv me, maint_person_employee mpe
+      WHERE me.org_code IN ('M1','M2','M3','M4','M5')
+      AND me.emp_no = mpe.emp_no
+      AND me.resource_seq = mpe.resource_seq
+      AND mpe.company = company_; 
+BEGIN
+   FOR rec_ IN get_company_employees LOOP
+      individual_nps_ := Get_NPS(rec_.emp_no, company_, start_date_, end_date_);
+      -- If anyone of employees has no surveys completed during time period, disregard that figure and 
+      -- do the calculation using other employees figures
+      IF (individual_nps_ = 999) THEN
+         return_value_ := 999;         
+      ELSE
+         sum_nps_ :=  sum_nps_ + individual_nps_;
+         count_ := count_ + 1;
+      END IF;     
+   END LOOP; 
+   IF (return_value_ = 999) THEN
+      RETURN return_value_;      
+   ELSE
+      RETURN ROUND(sum_nps_/count_);
+   END IF;    
+END Get_Company_NPS;
+
+FUNCTION Get_Company_No_Access(   
+   company_    VARCHAR2,
+   start_date_ DATE,
+   end_date_   DATE) RETURN NUMBER
+IS
+   count_ NUMBER := 0;
+   sum_no_access_ NUMBER := 0;   
+   
+   CURSOR get_company_employees IS
+      SELECT me.emp_no 
+      FROM maint_empolyee_uiv me, maint_person_employee mpe
+      WHERE me.org_code IN ('M1','M2','M3','M4','M5')
+      AND me.emp_no = mpe.emp_no
+      AND me.resource_seq = mpe.resource_seq
+      AND mpe.company = company_; 
+BEGIN
+   FOR rec_ IN get_company_employees LOOP
+      sum_no_access_ :=  sum_no_access_ + Get_No_Access(rec_.emp_no, company_, start_date_, end_date_);
+      count_ := count_ + 1;
+   END LOOP;
+   RETURN ROUND(sum_no_access_/count_);
+END Get_Company_No_Access; 
+
+FUNCTION Get_Company_Value_Added_Work(   
+   company_    VARCHAR2,
+   start_date_ DATE,
+   end_date_   DATE) RETURN NUMBER
+IS
+   count_ NUMBER := 0;
+   sum_value_added_work_ NUMBER := 0; 
+   
+   CURSOR get_company_employees IS
+      SELECT me.emp_no 
+      FROM maint_empolyee_uiv me, maint_person_employee mpe
+      WHERE me.org_code IN ('M1','M2','M3','M4','M5')
+      AND me.emp_no = mpe.emp_no
+      AND me.resource_seq = mpe.resource_seq
+      AND mpe.company = company_;    
+BEGIN 
+   FOR rec_ IN get_company_employees LOOP
+      sum_value_added_work_ :=  sum_value_added_work_ + Get_Value_Added_Work(rec_.emp_no, company_, start_date_, end_date_);
+      count_ := count_ + 1;
+   END LOOP;
+   RETURN ROUND(sum_value_added_work_/count_);
+END Get_Company_Value_Added_Work;
+
+FUNCTION Get_Company_Nonval_Added_Work(   
+   company_    VARCHAR2,
+   start_date_ DATE,
+   end_date_   DATE) RETURN NUMBER
+IS
+   count_ NUMBER := 0;
+   sum_non_value_added_work_ NUMBER := 0;   
+   
+   CURSOR get_company_employees IS
+      SELECT me.emp_no 
+      FROM maint_empolyee_uiv me, maint_person_employee mpe
+      WHERE me.org_code IN ('M1','M2','M3','M4','M5')
+      AND me.emp_no = mpe.emp_no
+      AND me.resource_seq = mpe.resource_seq
+      AND mpe.company = company_;   
+BEGIN
+   FOR rec_ IN get_company_employees LOOP
+      sum_non_value_added_work_ :=  sum_non_value_added_work_ + Get_Non_Value_Added_Work(rec_.emp_no, company_, start_date_, end_date_);
+      count_ := count_ + 1;
+   END LOOP;
+   RETURN ROUND(sum_non_value_added_work_/count_);   
+END Get_Company_Nonval_Added_Work;
+
+FUNCTION Get_Current_Company_Rank(  
+   company_    VARCHAR2,
+   start_date_ DATE,
+   end_date_   DATE) RETURN NUMBER
+IS   
+   PRAGMA  AUTONOMOUS_TRANSACTION;    
+       
+   sla_ NUMBER;
+   first_fix_ NUMBER;
+   nps_ NUMBER;
+   no_access_ NUMBER;
+   value_added_work_ NUMBER;
+   non_value_added_work_ NUMBER;
+   score_ NUMBER;  
+   rank_ NUMBER := 0;
+
+   CURSOR get_companies IS
+      SELECT DISTINCT mpe.company 
+      FROM maint_empolyee_uiv me, maint_person_employee mpe
+      WHERE me.org_code IN ('M1','M2','M3','M4','M5')
+      AND me.emp_no = mpe.emp_no
+      AND me.resource_seq = mpe.resource_seq;
+
+   CURSOR get_companies_sorted IS
+      SELECT company, RANK() OVER (ORDER BY score DESC) rank
+      FROM comp_current_score_tmp  
+      ORDER BY score DESC;      
+BEGIN 
+   FOR rec_ IN get_companies LOOP      
+      nps_ := Get_Company_NPS(rec_.company, start_date_, end_date_);      
+      
+      -- if there are no surveys satisfying the requirement(ie value gets 999) no need to consider for overall score calculation
+      IF (nps_ != 999) THEN
+         sla_ := Get_Company_SLA(rec_.company, start_date_, end_date_);
+         first_fix_ := Get_Company_First_Fix(rec_.company, start_date_, end_date_); 
+         no_access_ := Get_Company_No_Access(rec_.company, start_date_, end_date_); 
+         value_added_work_ := Get_Company_Value_Added_Work(rec_.company, start_date_, end_date_); 
+         non_value_added_work_ := Get_Company_Nonval_Added_Work(rec_.company, start_date_, end_date_); 
+         score_ := (sla_ + first_fix_ + nps_ + (100 - no_access_) + value_added_work_ + (100 - non_value_added_work_))/6;  
+      ELSE
+         score_ := 0;
+      END IF;  
+      
+      -- inserting records to the temporary table in order to sort later
+      IF (score_ != 0) THEN 
+         INSERT INTO comp_current_score_tmp(company, score)  
+         VALUES (rec_.company, score_);
+      END IF;
+   END LOOP;
+  
+   FOR rec_ IN get_companies_sorted LOOP
+      IF (rec_.company = company_) THEN
+         rank_ := rec_.rank;
+         EXIT;
+      END IF;
+   END LOOP; 
+   @ApproveTransactionStatement(2021-08-09, EntMahesR)  
+   COMMIT;   
+   RETURN rank_;
+   
+END Get_Current_Company_Rank;
+
+FUNCTION Get_Previous_Company_Rank(   
+   company_    VARCHAR2,
+   start_date_ DATE,
+   end_date_   DATE) RETURN NUMBER
+IS   
+   PRAGMA  AUTONOMOUS_TRANSACTION; 
+   
+   no_of_days_ NUMBER;    
+   previous_start_date_ DATE;
+   previous_end_date_ DATE;
+   previous_sla_ NUMBER;
+   previous_first_fix_ NUMBER;
+   previous_nps_ NUMBER;
+   previous_no_access_ NUMBER;
+   previous_value_added_work_ NUMBER;
+   previous_non_value_added_work_ NUMBER;
+   previous_score_ NUMBER;  
+   rank_ NUMBER := 0;
+
+   CURSOR get_companies IS
+      SELECT DISTINCT mpe.company 
+      FROM maint_empolyee_uiv me, maint_person_employee mpe
+      WHERE me.org_code IN ('M1','M2','M3','M4','M5')
+      AND me.emp_no = mpe.emp_no
+      AND me.resource_seq = mpe.resource_seq;
+
+   CURSOR get_companies_sorted IS
+      SELECT company, RANK() OVER (ORDER BY score DESC) rank
+      FROM comp_previous_score_tmp  
+      ORDER BY score DESC;    
+BEGIN
+   no_of_days_ := end_date_ - start_date_;  
+   previous_start_date_ := start_date_ - no_of_days_;
+   previous_end_date_ := end_date_ - no_of_days_; 
+   
+   FOR rec_ IN get_companies LOOP      
+      previous_nps_ := Get_Company_NPS(rec_.company, previous_start_date_, previous_end_date_); 
+      -- if there are no surveys satisfying the requirement(ie value gets 999) no need to consider for overall score calculation
+      IF (previous_nps_ != 999) THEN
+         previous_sla_ := Get_Company_SLA(rec_.company, previous_start_date_, previous_end_date_);
+         previous_first_fix_ := Get_Company_First_Fix(rec_.company, previous_start_date_, previous_end_date_); 
+         previous_no_access_ := Get_Company_No_Access(rec_.company, previous_start_date_, previous_end_date_); 
+         previous_value_added_work_ := Get_Company_Value_Added_Work(rec_.company, previous_start_date_, previous_end_date_); 
+         previous_non_value_added_work_ := Get_Company_Nonval_Added_Work(rec_.company, previous_start_date_, previous_end_date_); 
+         previous_score_ := (previous_sla_ + previous_first_fix_ + previous_nps_ + (100 - previous_no_access_) + previous_value_added_work_ + (100 - previous_non_value_added_work_))/6;  
+      ELSE
+         previous_score_ := 0;
+      END IF;  
+      
+      -- inserting records to the temporary table in order to sort later
+      IF (previous_score_ != 0) THEN 
+         INSERT INTO comp_previous_score_tmp(company, score)  
+         VALUES (rec_.company, previous_score_);          
+      END IF;
+   END LOOP;   
+   
+   FOR rec_ IN get_companies_sorted LOOP
+      IF (rec_.company = company_) THEN
+         rank_ := rec_.rank;
+         EXIT;
+      END IF;
+   END LOOP; 
+   @ApproveTransactionStatement(2021-08-09, EntMahesR)   
+   COMMIT;   
+   RETURN rank_;
+   
+END Get_Previous_Company_Rank;
+-- C458 EntMahesR (END)
 -------------------- LU  NEW METHODS -------------------------------------
