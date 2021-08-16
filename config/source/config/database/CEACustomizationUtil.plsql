@@ -2950,7 +2950,6 @@ IS
    status_ VARCHAR2(100);
    inv_state_ VARCHAR2(100);
    inv_due_ DATE;
-   current_bucket_ NUMBER;
    credit_note_ NUMBER;
    amount_due_ NUMBER;
    temp_ VARCHAR2(5):='FALSE';
@@ -2966,7 +2965,7 @@ IS
 
    CURSOR get_inv_header_notes (company_ VARCHAR2, identity_ VARCHAR2, invoice_id_ NUMBER )IS
       SELECT * 
-        FROM (SELECT follow_up_date, Credit_Note_Status_API.Get_Note_Status_Description(company,note_status_id)
+        FROM (SELECT follow_up_date
                 FROM invoice_header_notes
                WHERE company =company_
                  AND identity = identity_
@@ -2975,7 +2974,19 @@ IS
             ORDER BY follow_up_date DESC, note_id DESC 
             )
         WHERE rownum  =1;
-
+   
+   CURSOR get_latest_header_note (company_ VARCHAR2, identity_ VARCHAR2, invoice_id_ NUMBER )
+   IS
+      SELECT * FROM (
+      SELECT Credit_Note_Status_API.Get_Note_Status_Description(company,note_status_id) status
+      from invoice_header_notes
+      WHERE company = company_
+        AND identity = identity_
+        AND party_type = 'Customer'
+        AND invoice_id = invoice_id_
+      ORDER BY note_id DESC)
+      WHERE rownum = 1;
+      
    CURSOR get_inv_info(company_ VARCHAR2, identity_ VARCHAR2, invoice_id_ NUMBER )IS
       SELECT inv_state, due_date
         FROM invoice_ledger_item_cu_qry
@@ -3007,8 +3018,13 @@ BEGIN
    FOR rec_ IN get_inv_headers(identity_,credit_analyst_ , company_ ) LOOP
        OPEN get_inv_header_notes(rec_.company, rec_.identity,rec_.invoice_id);
       FETCH get_inv_header_notes 
-       INTO follow_up_date_, status_;
+       INTO follow_up_date_;
       CLOSE get_inv_header_notes;
+      
+        OPEN get_latest_header_note(rec_.company, rec_.identity,rec_.invoice_id);
+      FETCH get_latest_header_note 
+       INTO status_;
+      CLOSE get_latest_header_note;
 
        OPEN  get_inv_info(rec_.company, rec_.identity,rec_.invoice_id);
       FETCH  get_inv_info 
@@ -3016,7 +3032,8 @@ BEGIN
       CLOSE get_inv_info;
 
       IF(follow_up_date_ IS NOT NULL AND follow_up_date_<= SYSDATE AND 
-         (inv_state_ NOT IN ('Preliminary', 'Cancelled', 'PaidPosted')AND inv_due_< SYSDATE) )THEN 
+         (inv_state_ NOT IN ('Preliminary', 'Cancelled', 'PaidPosted')AND inv_due_< SYSDATE) 
+           AND status_ NOT IN ('Complete','Escalated to Credit Manager','Escalated to Finance Controller'))THEN 
          temp_ := 'TRUE';
          EXIT;
       END IF;      
@@ -3034,14 +3051,14 @@ BEGIN
          EXIT;
       END IF; 
       
-      OPEN  get_aging_bucket(rec_.company, rec_.invoice_id);
+      /*OPEN  get_aging_bucket(rec_.company, rec_.invoice_id);
       FETCH  get_aging_bucket INTO  current_bucket_;
       CLOSE get_aging_bucket;
       
       IF(status_ NOT IN ('Complete','Escalated to Credit Manager','Escalated to Finance Controller') AND current_bucket_ IS NOT NULL)THEN
          temp_ := 'TRUE';
          EXIT;
-      END IF;
+      END IF;*/
    END LOOP;
    RETURN temp_;
 END Check_Inv_Header_CA;
