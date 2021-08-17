@@ -4053,8 +4053,8 @@ IS
       AND    emp_no     = emp_no_
       AND ((date_From >=  start_date_  AND
            date_to <= end_date_)  OR 
-           (date_From < start_date_ AND (date_to > start_date_ AND  date_to <= end_date_)) OR 
-           ((date_From >= start_date_ AND date_From <=  end_date_) AND  date_to > end_date_) OR 
+           (date_From < start_date_ AND (date_to >= start_date_ AND  date_to <= end_date_)) OR 
+           ((date_From >= start_date_ AND date_From <=  end_date_) AND  date_to >= end_date_) OR 
            (date_From <  start_date_  AND date_to > end_date_))
       AND (CASE WHEN (UPPER(absence_type_) = 'ALL' or  (absence_type_) IS NULL) THEN 1  
            WHEN Absence_Type_API.Get_Absence_Type_Name(company_, absence_type_id) 
