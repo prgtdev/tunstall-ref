@@ -4038,10 +4038,11 @@ END Get_Service_Contract_Notes_WO;
 
 -- 210812 EntDinusK C621 (START)
 FUNCTION Get_Absence_Days_For_Period (
-   start_date_ IN DATE,
-   end_date_   IN DATE,
-   company_    IN VARCHAR2,
-   emp_no_     IN VARCHAR2) RETURN NUMBER
+   start_date_   IN DATE,
+   end_date_     IN DATE,
+   company_      IN VARCHAR2,
+   emp_no_       IN VARCHAR2,
+   absence_type_ IN VARCHAR2) RETURN NUMBER
 IS
    absence_days_       NUMBER := 0;
    total_absence_days_ NUMBER := 0;
@@ -4054,7 +4055,11 @@ IS
            date_to <= end_date_)  OR 
            (date_From < start_date_ AND (date_to > start_date_ AND  date_to <= end_date_)) OR 
            ((date_From >= start_date_ AND date_From <=  end_date_) AND  date_to > end_date_) OR 
-           (date_From <  start_date_  AND date_to > end_date_));
+           (date_From <  start_date_  AND date_to > end_date_))
+      AND (CASE WHEN (UPPER(absence_type_) = 'ALL' or  (absence_type_) IS NULL) THEN 1  
+           WHEN Absence_Type_API.Get_Absence_Type_Name(company_, absence_type_id) 
+              IN (select regexp_substr(absence_type_,'[^,]+', 1, level) FROM dual CONNECT BY regexp_substr(absence_type_, '[^,]+', 1, level) IS NOT NULL) THEN 1
+           ELSE 0 END) = 1;      
 BEGIN
    FOR rec_ IN get_absence_days LOOP
       IF (rec_.date_to >= end_date_) THEN
