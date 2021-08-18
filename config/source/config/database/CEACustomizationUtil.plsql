@@ -5671,4 +5671,48 @@ BEGIN
    
 END Get_Previous_Company_Rank;
 -- C458 EntMahesR (END)
+
+--C629 EntChamuA (START)
+FUNCTION Attach_Matched_Trasactions(target_key_ref_ IN VARCHAR2,
+                                    service_name_   IN VARCHAR2)RETURN VARCHAR2
+IS
+                                      
+   company_             payment_transaction_tab.company%TYPE;
+   series_id_           payment_transaction_tab.series_id%TYPE;
+   payment_id_          payment_transaction_tab.payment_id%TYPE;
+   trans_id_            payment_transaction_tab.trans_id%TYPE;
+   source_key_ref_      VARCHAR2(32000);
+   source_key_ref_list_ VARCHAR2(32000);
+  
+   CURSOR get_part_nos(company_ IN VARCHAR2, series_id_ IN VARCHAR2, payment_id_ IN NUMBER, trans_id_ IN VARCHAR2) IS
+      SELECT short_name, reconciled_date
+        FROM payment_transaction_tab
+       WHERE company = company_
+         AND series_id = series_id_
+         AND payment_id = payment_id_
+         AND trans_id = trans_id_;
+  
+BEGIN
+   company_    := Client_SYS.Get_Key_Reference_Value(target_key_ref_,
+                                                    'COMPANY');
+   series_id_  := Client_SYS.Get_Key_Reference_Value(target_key_ref_,
+                                                    'SERIES_ID');
+   payment_id_ := Client_SYS.Get_Key_Reference_Value(target_key_ref_,
+                                                    'PAYMENT_ID');
+   trans_id_   := Client_SYS.Get_Key_Reference_Value(target_key_ref_,
+                                                    'TRANS_ID');
+                                                    
+   FOR rec_ IN get_part_nos(company_, series_id_, payment_id_, trans_id_) LOOP
+    
+      Client_SYS.Add_To_Key_Reference(source_key_ref_, 'COMPANY', company_);
+      Client_SYS.Add_To_Key_Reference(source_key_ref_, 'RECONCILIATION_DATE', rec_.reconciled_date);
+      Client_SYS.Add_To_Key_Reference(source_key_ref_, 'SHORT_NAME', rec_.short_name);
+                  
+      Obj_Connect_Lu_Transform_API.Add_To_Source_Key_Ref_List(source_key_ref_list_,
+                                                              source_key_ref_);
+   END LOOP;
+  
+   RETURN source_key_ref_list_;
+END Attach_Matched_Trasactions;
+-- C629 EntChamuA (END)
 -------------------- LU  NEW METHODS -------------------------------------
