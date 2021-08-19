@@ -2679,7 +2679,9 @@ SELECT *
          AND to_date(t.ms_date, ''DD/MM/YY'') >= to_date(SYSDATE, ''DD/MM/YY'')
          GROUP BY CUBE(t.contract,t.part_no,t.ms_date,ifsapp.Inventory_Product_Family_API.Get_Description(ifsapp.Inventory_Part_Api.Get_Part_Product_Family(t.contract,t.part_no)))
          ORDER BY product_family ASC)                  
-         PIVOT ( SUM(supply) FOR ms_date IN (' ||pivot_clause|| '))';  
+         PIVOT ( SUM(supply) FOR ms_date IN (' ||pivot_clause|| '))
+         WHERE contract IS NOT NULL        
+         ORDER BY 1,2,3 ASC';  
    dbms_output.put_line(sql_stmt);     
    EXECUTE IMMEDIATE sql_stmt;      
 END Create_Weekly_Loading_;
