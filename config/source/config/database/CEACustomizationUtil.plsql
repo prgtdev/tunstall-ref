@@ -5877,7 +5877,7 @@ BEGIN
               OPEN  get_next_transport_task_id;
               FETCH get_next_transport_task_id INTO transport_task_id_;
               CLOSE get_next_transport_task_id;
-             IF (order_qty_ >0) THEN    
+             IF (order_qty_ >0 AND to_location_ IS NOT NULL) THEN    
               Client_Sys.Clear_Attr(attr_);
               Client_Sys.Add_To_Attr('TRANSPORT_TASK_ID',transport_task_id_,attr_);              
               Transport_Task_API.New__(info_,objid_,objversion_,attr_,'DO');
