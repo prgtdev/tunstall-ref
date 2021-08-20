@@ -5723,4 +5723,283 @@ BEGIN
    RETURN source_key_ref_list_;
 END Attach_Matched_Trasactions;
 -- C629 EntChamuA (END)
+
+
+-- 210820 EntNadeeL C290 (START)
+PROCEDURE Replenish_Sm_Stock_ IS
+   sql_stmt_               VARCHAR2(1000);        
+   attr_                   VARCHAR2(1000);
+   cf_attr_                VARCHAR2(1000);
+   info_                   VARCHAR2(1000);
+   line_attr_              VARCHAR2(1000);
+   line_info_              VARCHAR2(1000);
+   error_                  VARCHAR2(1000);   
+   objversion_             VARCHAR2(100);
+   old_objversion_         VARCHAR2(100);
+   line_objversion_        VARCHAR2(100);
+   to_location_            VARCHAR2(100);
+   to_contract_            VARCHAR2(100);
+   from_location_          VARCHAR2(100);
+   from_contract_          VARCHAR2(100);
+   line_objid_             VARCHAR2(50) ;  
+   objid_                  VARCHAR2(50);
+   old_objid_              VARCHAR2(50);
+   task_status_            VARCHAR2(50);
+   mrp_requirement_        NUMBER;
+   sm_onhand_qty_          NUMBER;
+   required_qty_           NUMBER;
+   rounded_required_qty_   NUMBER;
+   part_min_qty_           NUMBER;
+   transport_task_id_      NUMBER;
+   old_transport_task_id_  NUMBER;
+   order_qty_              NUMBER;
+   old_order_qty_          NUMBER;
+
+          
+   CURSOR get_consolidated_mrp_req IS
+      SELECT t.part_no,t.contract,SUM(t.demand_qty) AS mrp_req 
+      FROM MRP_PART_SUPPLY_DEMAND_UIV t 
+      WHERE to_date(t.required_date,'DD/MM/YY') between to_date(SYSDATE,'DD/MM/YY') AND to_date(SYSDATE+10,'DD/MM/YY')
+      AND Inventory_Part_Api.Get_Type_Code_Db(t.contract,t.part_no) ='4'
+      AND t.contract = '2011'
+     -- AND t.part_no ='XX-D6801015B'
+      GROUP BY t.contract,t.part_no
+      ORDER BY t.part_no ASC;
+      
+   CURSOR get_sm_onhand_qty(contract_ VARCHAR2,part_no_ VARCHAR2) IS
+      SELECT NVL(SUM(ip.qty_onhand),0) AS QTY_ONHAND
+      FROM INVENTORY_PART_IN_STOCK_UIV ip 
+      WHERE ip.warehouse LIKE 'SM%' AND ip.part_no = part_no_ AND ip.contract = contract_
+      GROUP BY ip.contract,ip.location_no;
+      
+   CURSOR get_default_sm_location(contract_ VARCHAR2,part_no_ VARCHAR2) IS
+      SELECT NVL(t.cf$_Location_No,t.cf$_Location_No_2) sm_loc
+      FROM INVENTORY_PART_DEF_LOC_CFV t 
+      WHERE t.part_no = part_no_ AND t.contract = contract_
+      AND  Inventory_Location_Api.Get_Warehouse(t.CONTRACT,t.LOCATION_NO) IN ('C01','C02','AU');  
+         
+   CURSOR get_min_qty(contract_ VARCHAR2,part_no_ VARCHAR2) IS
+      SELECT t.MINIMUM_QTY 
+      FROM Purchase_part_supplier t 
+      WHERE t.part_no = part_no_ AND t.contract = contract_;      
+       
+   CURSOR get_available_qty(contract_ VARCHAR2,part_no_ VARCHAR2) IS   
+   SELECT SUM(t.qty_onhand-t.qty_reserved) avail_qty,t.warehouse,t.lot_batch_no ,t.serial_no,t.waiv_dev_rej_no,t.eng_chg_level,t.activity_seq,t.handling_unit_id,t.location_no,t.contract,t.part_no,t.configuration_id
+      FROM Inventory_Part_In_Stock_Uiv t
+      WHERE t.warehouse IN ('C01','C02','AU')
+      AND t.part_no = part_no_
+      AND t.contract = contract_
+      GROUP BY t.contract,t.part_no,t.warehouse,t.serial_no,t.waiv_dev_rej_no,t.eng_chg_level,t.location_no,t.configuration_id,t.activity_seq,t.handling_unit_id,lot_batch_no
+      ORDER BY avail_qty DESC;  
+      
+   CURSOR get_next_transport_task_id IS
+         SELECT MAX(t.transport_task_id) + 1
+           FROM TRANSPORT_TASK t;
+           
+   CURSOR get_exist_transport_task(part_no_ VARCHAR2,from_location_ VARCHAR2) IS
+   SELECT l.transport_task_status_db,t.transport_task_id,t.objid,t.objversion,l.quantity
+   FROM Transport_Task t LEFT OUTER JOIN Transport_Task_Line l 
+   ON t.transport_task_id = l.transport_task_id AND t.part_no = l.part_no
+   WHERE t.part_no = part_no_
+   AND t.from_location_no = from_location_
+   AND l.transport_task_status_db IN ('PICKED','CREATED');     
+        
+BEGIN
+   --clear old data from C_SM_REPLENISH_TEMP table
+    sql_stmt_ := 'DELETE FROM C_SM_REPLENISHMENT_TAB
+                                  COMMIT';
+              dbms_output.put_line(sql_stmt_);
+              EXECUTE IMMEDIATE sql_stmt_;
+   --Go through the parts that has a demand for the next 10 days and get the consolidated demand quantity 
+   FOR part_rec_ IN get_consolidated_mrp_req LOOP
+      --Check the available on hand quantity in SM% warehouses
+       sm_onhand_qty_ := 0.0;       
+       OPEN get_sm_onhand_qty(part_rec_.contract,part_rec_.part_no);
+       FETCH get_sm_onhand_qty INTO sm_onhand_qty_;
+       CLOSE get_sm_onhand_qty;
+       --Get default SM location to receive quantity
+       to_location_ := NULL;
+       OPEN get_default_sm_location(part_rec_.contract,part_rec_.part_no);
+       FETCH get_default_sm_location INTO to_location_;
+       CLOSE get_default_sm_location;
+       
+       
+       --If the available on hand quantity in SM% warehouses is less than the demand quantity then the balance will be ordered from warehouses AU, C01,C02 and GM
+       IF (part_rec_.mrp_req > NVL(sm_onhand_qty_,0)) THEN
+          
+          required_qty_ := part_rec_.mrp_req - NVL(sm_onhand_qty_,0);
+          part_min_qty_ := 0.0;
+          --Requested amount to warehouses AU, C01,C02 and GM will be rounded up depending on the min quantity in Supplier for Purchase part 
+          OPEN get_min_qty(part_rec_.contract,part_rec_.part_no);
+          FETCH get_min_qty INTO part_min_qty_;
+          CLOSE get_min_qty;
+          
+          IF NVL(part_min_qty_,0)>0 THEN
+             rounded_required_qty_ := part_min_qty_ * CEIL((required_qty_/part_min_qty_));
+          ELSE
+             rounded_required_qty_ := required_qty_;
+          END IF;          
+          
+          --Get available quantity in warehouses AU, C01,C02 and GM and create transport tasks accordingly
+          FOR avail_rec_ IN get_available_qty(part_rec_.contract,part_rec_.part_no) LOOP          
+          
+              IF (rounded_required_qty_ > 0) THEN
+                 
+              IF rounded_required_qty_ >= avail_rec_.avail_qty THEN
+                 order_qty_ := avail_rec_.avail_qty;             
+              ELSE
+                 order_qty_ := rounded_required_qty_;
+              END IF; 
+              objid_     :=NULL;
+              objversion_ :=NULL;
+              line_objid_     :=NULL;
+              line_objversion_ :=NULL;
+              
+              BEGIN        
+              task_status_ :=NULL;
+              old_transport_task_id_ := NULL;
+              old_objid_ :=NULL;
+              old_objversion_:=NULL;
+              old_order_qty_:=NULL;
+                    
+              --Check already existing transport tasks
+              OPEN get_exist_transport_task(part_rec_.part_no,avail_rec_.location_no);
+              FETCH get_exist_transport_task INTO task_status_,old_transport_task_id_,old_objid_,old_objversion_,old_order_qty_;
+              CLOSE get_exist_transport_task;
+              
+              --If the task is in Created status and generated from SM replenishment logic delete and recreate
+              IF (task_status_ = 'CREATED' AND Transport_Task_Cfp.Get_Cf$_Source(Transport_Task_Cfp.Get_Objkey(old_transport_task_id_)) = 'SM REPLENISHMENT') THEN
+                 Transport_Task_API.Remove__(info_,old_objid_,old_objversion_,'DO');
+              ELSIF (task_status_ = 'PICKED' AND Transport_Task_Cfp.Get_Cf$_Source(Transport_Task_Cfp.Get_Objkey(old_transport_task_id_)) = 'SM REPLENISHMENT') THEN  
+                 order_qty_ := order_qty_ -  old_order_qty_;                         
+              END IF;
+              --Get next trasnport task ID
+              OPEN  get_next_transport_task_id;
+              FETCH get_next_transport_task_id INTO transport_task_id_;
+              CLOSE get_next_transport_task_id;
+             IF (order_qty_ >0) THEN    
+              Client_Sys.Clear_Attr(attr_);
+              Client_Sys.Add_To_Attr('TRANSPORT_TASK_ID',transport_task_id_,attr_);              
+              Transport_Task_API.New__(info_,objid_,objversion_,attr_,'DO');
+              
+              Client_Sys.Clear_Attr(cf_attr_);
+              Client_Sys.Add_To_Attr('CF$_SOURCE','SM REPLENISHMENT',cf_attr_);              
+              Transport_Task_Cfp.Cf_New__(info_,objid_,cf_attr_,attr_,'DO');
+             
+              Client_Sys.Clear_Attr(line_attr_);
+              Client_Sys.Add_To_Attr('TRANSPORT_TASK_ID',transport_task_id_,line_attr_);
+              Client_Sys.Add_To_Attr('LOT_BATCH_NO',avail_rec_.lot_batch_no,line_attr_);
+              Client_Sys.Add_To_Attr('SERIAL_NO',avail_rec_.serial_no,line_attr_);
+              Client_Sys.Add_To_Attr('WAIV_DEV_REJ_NO',avail_rec_.waiv_dev_rej_no,line_attr_);
+              Client_Sys.Add_To_Attr('ENG_CHG_LEVEL',avail_rec_.eng_chg_level,line_attr_);
+              Client_Sys.Add_To_Attr('QUANTITY',order_qty_,line_attr_);
+              Client_Sys.Add_To_Attr('ACTIVITY_SEQ',avail_rec_.activity_seq,line_attr_);
+              Client_Sys.Add_To_Attr('HANDLING_UNIT_ID',avail_rec_.handling_unit_id,line_attr_);
+              Client_Sys.Add_To_Attr('DESTINATION','Move to inventory',line_attr_);
+              Client_Sys.Add_To_Attr('FROM_CONTRACT',avail_rec_.contract,line_attr_);
+              Client_Sys.Add_To_Attr('FROM_LOCATION_NO',avail_rec_.location_no,line_attr_);
+              Client_Sys.Add_To_Attr('TO_CONTRACT','2011',line_attr_);
+              Client_Sys.Add_To_Attr('TO_LOCATION_NO',to_location_,line_attr_);
+              Client_Sys.Add_To_Attr('PART_NO',avail_rec_.part_no,line_attr_);
+              Client_Sys.Add_To_Attr('CONFIGURATION_ID',avail_rec_.configuration_id,line_attr_);
+              Transport_Task_Line_Api.New__(line_info_, line_objid_,line_objversion_,line_attr_, 'DO');
+          
+              rounded_required_qty_ := rounded_required_qty_ - order_qty_;   
+              
+               dbms_output.put_line('------------------------------------------------------------');
+               dbms_output.put_line('Part No:'||part_rec_.part_no);
+               dbms_output.put_line('Demand:'||part_rec_.mrp_req);
+               dbms_output.put_line('SM Onhand Qunatity:'||sm_onhand_qty_);
+               dbms_output.put_line('Part Min Quantity:'||part_min_qty_);
+               dbms_output.put_line('Required Quantity:'||required_qty_);
+               dbms_output.put_line('Rounded Required Quantity:'||rounded_required_qty_);  
+               dbms_output.put_line('To location - '||to_location_);
+               dbms_output.put_line('Order Quantity:'||order_qty_); 
+               dbms_output.put_line('source location:'||avail_rec_.location_no); 
+               dbms_output.put_line('Available Quantity:'||avail_rec_.avail_qty);   
+               dbms_output.put_line('transport Task ID - '||transport_task_id_);
+               dbms_output.put_line('------------------------------------------------------------');
+              
+              Transaction_Sys.Set_Status_Info('Part No:'||part_rec_.part_no || ' | Demand:'||part_rec_.mrp_req||' | SM Onhand Qunatity:'||sm_onhand_qty_||' | Part Min Quantity:'||part_min_qty_
+             ||' | Required Quantity:'||required_qty_||' | Rounded Required Quantity:'||rounded_required_qty_||' | Transport Task ID:'||transport_task_id_,'INFO');
+            
+            INSERT INTO C_SM_REPLENISHMENT_TAB
+                 (CONTRACT,
+                  PART_NO,
+                  PART_DESCRIPTION,
+                  ORDER_REQUIREMENT,
+                  SM_STOCK,
+                  AU_SM_MIN,
+                  WAREHOUSE,
+                  LOCATION,
+                  QUANTITY,
+                  SM_SHORTAGE,
+                  SHORTAGE_ROUNDED,
+                  TRANSPORT_TASK_ID,
+                  COMMENTS,
+                  ROWVERSION)
+              VALUES
+                 (avail_rec_.contract,
+                  avail_rec_.part_no,
+                  Inventory_Part_Api.Get_Description(avail_rec_.contract,
+                                                     avail_rec_.part_no),
+                  part_rec_.mrp_req,
+                  NVL(sm_onhand_qty_,0),
+                  part_min_qty_,
+                  avail_rec_.warehouse,
+                  avail_rec_.location_no,
+                  avail_rec_.avail_qty,
+                  required_qty_,
+                  order_qty_,                 
+                  transport_task_id_,
+                  line_info_,
+                  SYSDATE); 
+                  
+                  END IF;                 
+                  
+    EXCEPTION 
+      WHEN OTHERS THEN
+         ROLLBACK;
+         dbms_output.put_line('Error'||SQLERRM); 
+         Transaction_Sys.Set_Status_Info(SQLERRM,'INFO'); 
+         error_ :=SQLERRM;  
+              INSERT INTO C_SM_REPLENISHMENT_TAB
+                 (CONTRACT,
+                  PART_NO,
+                  PART_DESCRIPTION,
+                  ORDER_REQUIREMENT,
+                  SM_STOCK,
+                  AU_SM_MIN,
+                  WAREHOUSE,
+                  LOCATION,
+                  QUANTITY,
+                  SM_SHORTAGE,
+                  SHORTAGE_ROUNDED,
+                  TRANSPORT_TASK_ID,
+                  COMMENTS,
+                  ROWVERSION)
+              VALUES
+                 (avail_rec_.contract,
+                  avail_rec_.part_no,
+                  Inventory_Part_Api.Get_Description(avail_rec_.contract,
+                                                     avail_rec_.part_no),
+                  part_rec_.mrp_req,
+                  NVL(sm_onhand_qty_,0),
+                  part_min_qty_,
+                  avail_rec_.warehouse,
+                  avail_rec_.location_no,
+                  avail_rec_.avail_qty,
+                  required_qty_,
+                  order_qty_,                 
+                  transport_task_id_,
+                  error_,
+                  SYSDATE);                   
+                     
+         END;
+           END IF;                           
+       END LOOP;
+    END IF;
+   END LOOP;
+END Replenish_Sm_Stock_;
+-- 210820 EntNadeeL C290 (END)
 -------------------- LU  NEW METHODS -------------------------------------
