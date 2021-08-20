@@ -5808,7 +5808,6 @@ BEGIN
    --clear old data from C_SM_REPLENISH_TEMP table
     sql_stmt_ := 'DELETE FROM C_SM_REPLENISHMENT_TAB
                                   COMMIT';
-              dbms_output.put_line(sql_stmt_);
               EXECUTE IMMEDIATE sql_stmt_;
    --Go through the parts that has a demand for the next 10 days and get the consolidated demand quantity 
    FOR part_rec_ IN get_consolidated_mrp_req LOOP
