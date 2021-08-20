@@ -2663,7 +2663,7 @@ SELECT *
             UNION ALL
             
          SELECT  *
-         FROM (SELECT   t.contract,
+         FROM (SELECT   NVL(t.contract,''NA'') contract,
          (CASE WHEN GROUPING(t.part_no)=1  THEN
           NVL(ifsapp.Inventory_Product_Family_API.Get_Description(ifsapp.Inventory_Part_Api.Get_Part_Product_Family(t.contract,t.part_no)),''NOT DEFINED'') || '' Total'' ELSE 
             NVL(ifsapp.Inventory_Product_Family_API.Get_Description(ifsapp.Inventory_Part_Api.Get_Part_Product_Family(t.contract,t.part_no)),''NOT DEFINED'') END) product_family,
@@ -2680,7 +2680,7 @@ SELECT *
          GROUP BY CUBE(t.contract,t.part_no,t.ms_date,ifsapp.Inventory_Product_Family_API.Get_Description(ifsapp.Inventory_Part_Api.Get_Part_Product_Family(t.contract,t.part_no)))
          ORDER BY product_family ASC)                  
          PIVOT ( SUM(supply) FOR ms_date IN (' ||pivot_clause|| '))
-         WHERE contract IS NOT NULL        
+         WHERE contract <> ''NA''     
          ORDER BY 1,2,3 ASC';  
    dbms_output.put_line(sql_stmt);     
    EXECUTE IMMEDIATE sql_stmt;      
