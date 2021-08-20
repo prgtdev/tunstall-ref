@@ -5809,6 +5809,7 @@ BEGIN
     sql_stmt_ := 'DELETE FROM C_SM_REPLENISHMENT_TAB
                                   COMMIT';
               EXECUTE IMMEDIATE sql_stmt_;
+              COMMIT;
    --Go through the parts that has a demand for the next 10 days and get the consolidated demand quantity 
    FOR part_rec_ IN get_consolidated_mrp_req LOOP
       --Check the available on hand quantity in SM% warehouses
