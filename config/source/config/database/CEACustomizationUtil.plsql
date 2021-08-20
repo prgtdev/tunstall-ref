@@ -5806,10 +5806,7 @@ PROCEDURE Replenish_Sm_Stock_ IS
         
 BEGIN
    --clear old data from C_SM_REPLENISH_TEMP table
-    sql_stmt_ := 'DELETE FROM C_SM_REPLENISHMENT_TAB
-                                  COMMIT';
-              EXECUTE IMMEDIATE sql_stmt_;
-              COMMIT;
+   DELETE FROM C_SM_REPLENISHMENT_TAB;   
    --Go through the parts that has a demand for the next 10 days and get the consolidated demand quantity 
    FOR part_rec_ IN get_consolidated_mrp_req LOOP
       --Check the available on hand quantity in SM% warehouses
@@ -5959,7 +5956,6 @@ BEGIN
                   
     EXCEPTION 
       WHEN OTHERS THEN
-         ROLLBACK;
          dbms_output.put_line('Error'||SQLERRM); 
          Transaction_Sys.Set_Status_Info(SQLERRM,'INFO'); 
          error_ :=SQLERRM;  
